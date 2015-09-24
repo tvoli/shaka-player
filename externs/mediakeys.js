@@ -1,5 +1,6 @@
 /**
- * Copyright 2014 Google Inc.
+ * @license
+ * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,15 +13,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @fileoverview MediaKey externs.
- * Based on {@link http://goo.gl/blgtZZ EME draft 12 March 2015}.
- * @externs
  */
 
-
-/** @typedef {ArrayBufferView|ArrayBuffer} */
-var BufferSource;
+/**
+ * @fileoverview Externs for MediaKeys based on
+ * {@link http://goo.gl/blgtZZ EME draft 12 March 2015}
+ *
+ * @externs
+ */
 
 
 /** @typedef {{contentType: string, robustness: string}} */
@@ -32,7 +32,8 @@ var MediaKeySystemMediaCapability;
  *   audioCapabilities: (Array.<!MediaKeySystemMediaCapability>|undefined),
  *   videoCapabilities: (Array.<!MediaKeySystemMediaCapability>|undefined),
  *   distinctiveIdentifier: (string|undefined),
- *   persistentState: (string|undefined)
+ *   persistentState: (string|undefined),
+ *   sessionTypes: (Array.<string>|undefined)
  * }} */
 var MediaKeySystemConfiguration;
 
@@ -88,7 +89,7 @@ MediaKeys.prototype.createSession = function(opt_sessionType) {};
 
 
 /**
- * @param {BufferSource} serverCertificate
+ * @param {?BufferSource} serverCertificate
  * @return {!Promise}
  */
 MediaKeys.prototype.setServerCertificate = function(serverCertificate) {};
@@ -107,7 +108,7 @@ MediaKeyStatusMap.prototype.size;
 
 /**
  * Array entry 0 is the key, 1 is the value.
- * @return {Iterator.<Array.<!BufferSource|string>>}
+ * @return {Iterator.<Array.<BufferSource|string>>}
  */
 MediaKeyStatusMap.prototype.entries = function() {};
 
@@ -120,21 +121,21 @@ MediaKeyStatusMap.prototype.forEach = function(fn) {};
 
 
 /**
- * @param {!BufferSource} keyId
+ * @param {BufferSource} keyId
  * @return {string|undefined}
  */
 MediaKeyStatusMap.prototype.get = function(keyId) {};
 
 
 /**
- * @param {!BufferSource} keyId
+ * @param {BufferSource} keyId
  * @return {boolean}
  */
 MediaKeyStatusMap.prototype.has = function(keyId) {};
 
 
 /**
- * @return {Iterator.<!BufferSource>}
+ * @return {Iterator.<BufferSource>}
  */
 MediaKeyStatusMap.prototype.keys = function() {};
 
@@ -171,7 +172,7 @@ MediaKeySession.prototype.keyStatuses;
 
 /**
  * @param {string} initDataType
- * @param {BufferSource} initData
+ * @param {!BufferSource} initData
  * @return {!Promise}
  */
 MediaKeySession.prototype.generateRequest = function(initDataType, initData) {};
@@ -185,7 +186,7 @@ MediaKeySession.prototype.load = function(sessionId) {};
 
 
 /**
- * @param {BufferSource} response
+ * @param {?BufferSource} response
  * @return {!Promise}
  */
 MediaKeySession.prototype.update = function(response) {};

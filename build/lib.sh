@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-dir=$(dirname $0)/..
+dir=$(dirname "$BASH_SOURCE")/..
 
 function calculate_version() {
   cd "$dir"
@@ -25,6 +25,11 @@ function calculate_version() {
 }
 
 GIT_VERSION=$(calculate_version)
+
+# 'deprecatedAnnotations' controls complaints about @expose, but the new
+# @nocollapse annotation does not do the same job for properties.
+# So since we can't use the new annotations, we have to ignore complaints
+# about the old one.
 
 closure_opts="
   --language_in ECMASCRIPT5
@@ -56,7 +61,10 @@ closure_opts="
   --jscomp_error=uselessCode
   --jscomp_error=visibility
 
+  --jscomp_off=deprecatedAnnotations
+
   --extra_annotation_name=listens
+  --extra_annotation_name=exportDoc
 
   -O ADVANCED
   --generate_exports
@@ -99,8 +107,9 @@ function compile_0() {
 function lint_0() {
   # Allow JSDoc3 tags not normally recognized by the linter, but be strict
   # otherwise.
-  jsdoc3_tags=static,summary,namespace,event,description,property,fires,listens
+  jsdoc3_tags=static,summary,namespace,event,description,property,fires,listens,example,exportDoc
   xargs -0 "$dir"/third_party/gjslint/gjslint \
+    --nobeep \
     --custom_jsdoc_tags $jsdoc3_tags \
     --strict "$@" 1>&2
 }

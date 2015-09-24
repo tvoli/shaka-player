@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,8 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @fileoverview Live integration tests.
  */
 
 goog.require('shaka.dash.MpdRequest');
@@ -80,7 +79,7 @@ describe('Player', function() {
     shaka.dash.MpdRequest.prototype.send = function() {
       return originalSend.call(this).then(
           function(mpd) {
-            if (this.url.toString().indexOf(googleStorageUrl) >= 0) {
+            if (this.url_.toString().indexOf(googleStorageUrl) >= 0) {
               mpd.availabilityStartTime = availabilityStartTime;
             }
             return Promise.resolve(mpd);
@@ -116,7 +115,7 @@ describe('Player', function() {
 
     // Disable automatic adaptation unless it is needed for a test.
     // This makes test results more reproducible.
-    player.enableAdaptation(false);
+    player.configure({'enableAdaptation': false});
 
     eventManager = new shaka.util.EventManager();
   });
@@ -346,14 +345,14 @@ describe('Player', function() {
 
   /**
    * @param {string} targetMpdUrl The url that should be used in the MpdRequest.
-   * {!Promise} resolved when an MpdRequest has been sent.
+   * @return {!Promise} resolved when an MpdRequest has been sent.
    */
   function waitForMpdRequest(targetMpdUrl) {
     var requestStatus = new shaka.util.PublicPromise();
     var MpdRequest = shaka.dash.MpdRequest;
 
     spyOn(window.shaka.dash, 'MpdRequest').and.callFake(function(mpdUrl) {
-      expect(mpdUrl).toEqual(targetMpdUrl);
+      expect(mpdUrl.toString()).toEqual(targetMpdUrl);
       var request = new MpdRequest(mpdUrl);
       spyOn(request, 'send').and.callFake(function() {
         requestStatus.resolve();
@@ -375,10 +374,10 @@ describe('Player', function() {
    */
   function waitForBeginPlayback(fn) {
     var originalBeginPlayback = videoSource.beginPlayback_;
-    videoSource.beginPlayback_ = function(segmentIndexes) {
-      originalBeginPlayback.call(videoSource, segmentIndexes);
+    videoSource.beginPlayback_ = function(segmentIndexes, tsc) {
+      originalBeginPlayback.call(videoSource, segmentIndexes, tsc);
       // Do this async.
-      window.setTimeout(fn.bind(null, segmentIndexes), 0);
+      window.setTimeout(fn.bind(null, segmentIndexes, tsc), 0);
     };
   }
 });
