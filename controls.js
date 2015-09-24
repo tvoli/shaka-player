@@ -1,4 +1,5 @@
 /**
+ * @license
  * Copyright 2015 Google Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,12 +13,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * @fileoverview Implements the video controls overlay.
  */
 
 
-/** @class */
+/**
+ * The video controls overlay for the test app.
+ * @class
+ */
 var playerControls = function() {};
 
 
@@ -86,11 +88,15 @@ playerControls.init = function(video) {
 
   // seek
   var seekTimeoutId = null;
-  seekBar.addEventListener('mousedown', function() {
+  var onSeekStart = function() {
     playerControls.isSeeking_ = true;
     video.pause();
-  });
-  seekBar.addEventListener('input', function() {
+  };
+  var onSeekInputTimeout = function() {
+    seekTimeoutId = null;
+    video.currentTime = seekBar.value;
+  };
+  var onSeekInput = function() {
     if (!video.duration) {
       // Can't seek.  Ignore.
       return;
@@ -102,17 +108,22 @@ playerControls.init = function(video) {
     // Collect input events and seek when things have been stable for 100ms.
     if (seekTimeoutId) {
       window.clearTimeout(seekTimeoutId);
-      seekTimeoutId = null;
     }
-    seekTimeoutId = window.setTimeout(function() {
-      seekTimeoutId = null;
-      video.currentTime = seekBar.value;
-    }, 100);
-  });
-  seekBar.addEventListener('mouseup', function() {
+    seekTimeoutId = window.setTimeout(onSeekInputTimeout, 100);
+  };
+  var onSeekEnd = function() {
+    if (seekTimeoutId) {
+      window.clearTimeout(seekTimeoutId);
+      onSeekInputTimeout();
+    }
     video.play();
     playerControls.isSeeking_ = false;
-  });
+  };
+  seekBar.addEventListener('mousedown', onSeekStart);
+  seekBar.addEventListener('touchstart', onSeekStart);
+  seekBar.addEventListener('input', onSeekInput);
+  seekBar.addEventListener('mouseup', onSeekEnd);
+  seekBar.addEventListener('touchend', onSeekEnd);
   // initialize seek bar with 0
   seekBar.value = 0;
 
@@ -291,7 +302,6 @@ playerControls.updateTimeAndSeekRange_ = function() {
 
   var displayTime = video.currentTime;
   if (playerControls.isSeeking_) {
-    var seekBar = document.getElementById('seekBar');
     displayTime = seekBar.value;
   }
 
@@ -313,7 +323,9 @@ playerControls.updateTimeAndSeekRange_ = function() {
 
     seekBar.min = seekRange.start;
     seekBar.max = seekRange.end;
-    seekBar.value = seekRange.end - displayTime;
+    if (!playerControls.isSeeking_) {
+      seekBar.value = seekRange.end - displayTime;
+    }
   } else {
     var showHour = video.duration >= 3600;
     currentTime.textContent =
@@ -321,7 +333,9 @@ playerControls.updateTimeAndSeekRange_ = function() {
 
     seekBar.min = 0;
     seekBar.max = video.duration;
-    seekBar.value = displayTime;
+    if (!playerControls.isSeeking_) {
+      seekBar.value = displayTime;
+    }
   }
 
   var gradient = ['to right'];
