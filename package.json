@@ -26,6 +26,6 @@
     }
   ],
   "scripts": {
-    "prepublish": "./build/checkversion.sh && ./build/all.sh"
+    "prepublish": "./build/gendeps.sh"
   }
 }
