@@ -1,0 +1,51 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/iojs', '/usr/local/bin/npm', 'install' ]
+2 info using npm@2.11.0
+3 info using node@v2.2.1
+4 verbose readDependencies loading dependencies from /Users/kenneth/Development/shaka-player/package.json
+5 warn package.json shaka-player@1.5.0 license should be a valid SPDX license expression
+6 verbose install where, deps [ '/Users/kenneth/Development/shaka-player', [] ]
+7 verbose install where, peers [ '/Users/kenneth/Development/shaka-player', [] ]
+8 verbose installManyTop reading for lifecycle /Users/kenneth/Development/shaka-player/package.json
+9 info preinstall shaka-player@1.5.0
+10 verbose readDependencies loading dependencies from /Users/kenneth/Development/shaka-player/package.json
+11 silly install resolved []
+12 info build /Users/kenneth/Development/shaka-player
+13 info linkStuff shaka-player@1.5.0
+14 silly linkStuff shaka-player@1.5.0 has /Users/kenneth/Development as its parent node_modules
+15 verbose linkBins shaka-player@1.5.0
+16 verbose linkMans shaka-player@1.5.0
+17 verbose rebuildBundles shaka-player@1.5.0
+18 info install shaka-player@1.5.0
+19 info postinstall shaka-player@1.5.0
+20 info prepublish shaka-player@1.5.0
+21 verbose unsafe-perm in lifecycle true
+22 info shaka-player@1.5.0 Failed to exec prepublish script
+23 verbose stack Error: shaka-player@1.5.0 prepublish: `./build/checkversion.sh && ./build/all.sh`
+23 verbose stack Exit status 1
+23 verbose stack     at EventEmitter.<anonymous> (/usr/local/lib/node_modules/npm/lib/utils/lifecycle.js:213:16)
+23 verbose stack     at emitTwo (events.js:87:13)
+23 verbose stack     at EventEmitter.emit (events.js:172:7)
+23 verbose stack     at ChildProcess.<anonymous> (/usr/local/lib/node_modules/npm/lib/utils/spawn.js:24:14)
+23 verbose stack     at emitTwo (events.js:87:13)
+23 verbose stack     at ChildProcess.emit (events.js:172:7)
+23 verbose stack     at maybeClose (internal/child_process.js:763:16)
+23 verbose stack     at Process.ChildProcess._handle.onexit (internal/child_process.js:210:5)
+24 verbose pkgid shaka-player@1.5.0
+25 verbose cwd /Users/kenneth/Development/shaka-player
+26 error Darwin 14.4.0
+27 error argv "/usr/local/bin/iojs" "/usr/local/bin/npm" "install"
+28 error node v2.2.1
+29 error npm  v2.11.0
+30 error code ELIFECYCLE
+31 error shaka-player@1.5.0 prepublish: `./build/checkversion.sh && ./build/all.sh`
+31 error Exit status 1
+32 error Failed at the shaka-player@1.5.0 prepublish script './build/checkversion.sh && ./build/all.sh'.
+32 error This is most likely a problem with the shaka-player package,
+32 error not with npm itself.
+32 error Tell the author that this fails on your system:
+32 error     ./build/checkversion.sh && ./build/all.sh
+32 error You can get their info via:
+32 error     npm owner ls shaka-player
+32 error There is likely additional logging output above.
+33 verbose exit [ 1, true ]
