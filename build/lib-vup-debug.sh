@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-dir=$(dirname "$BASH_SOURCE")/..
+dir=$(dirname $0)/..
 
 function calculate_version() {
   cd "$dir"
@@ -68,14 +68,14 @@ closure_opts="
 
   -O ADVANCED
   --generate_exports
-  --output_wrapper_file="$dir"/build/wrapper.template.js
+  --output_wrapper_file="$dir"/build/wrapper.global.template.js
 
-  -D COMPILED=true
-  -D goog.DEBUG=false
+  -D COMPILED=false
+  -D goog.DEBUG=true
   -D goog.STRICT_MODE_COMPATIBLE=true
   -D goog.ENABLE_DEBUG_LOADER=false
-  -D shaka.asserts.ENABLE_ASSERTS=false
-  -D shaka.log.MAX_LOG_LEVEL=0
+  -D shaka.asserts.ENABLE_ASSERTS=true
+  -D shaka.log.MAX_LOG_LEVEL=3
   -D GIT_VERSION='$GIT_VERSION'
 "
 

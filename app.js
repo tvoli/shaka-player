@@ -118,6 +118,29 @@ app.audioCycleInterval_ = null;
 app.videoCycleInterval_ = null;
 
 
+app.extendedConfigurationManager = {
+  init: function() {
+    'use strict';
+    var formElement = document.getElementById('extendedConfiguration');
+    var stored = window.localStorage.getItem('extendedConfiguration');
+    if (stored) {
+      formElement.value = stored;
+    }
+  },
+  getAndStoreConfiguration: function() {
+    'use strict';
+    var configuration, formElement = document.getElementById('extendedConfiguration');
+    window.localStorage.setItem('extendedConfiguration', formElement.value);
+    try {
+      configuration = JSON.parse(formElement.value.replace(/\/\*(.|[\r\n])*\*\//gm, ''));
+    } catch (e) {
+      console.error('Invalid JSON configuration string specified', e);
+    }
+    return configuration;
+  }
+};
+
+
 /**
  * Initializes the application.
  */
@@ -137,6 +160,8 @@ app.init = function() {
   document.getElementById('mpdList').value =
       'assets/car_cenc-20120827-manifest.mpd';
 
+  app.extendedConfigurationManager.init();
+  
   app.video_ =
       /** @type {!HTMLVideoElement} */ (document.getElementById('video'));
   app.videoResDebug_ = document.getElementById('videoResDebug');
@@ -209,12 +234,17 @@ app.init = function() {
   if ('asset' in params) {
     document.getElementById('manifestUrlInput').value = params['asset'];
     app.onMpdCustom();
+  } else if(localStorage.getItem('shakaManifestUrl')) {
+    document.getElementById('manifestUrlInput').value = localStorage.getItem('shakaManifestUrl');
+    app.onMpdCustom();
   }
   if ('license' in params) {
-    document.getElementById('wvLicenseServerUrlInput').value =
+    document.getElementById('customLicenseServerUrlInput').value =
         params['license'];
+  } else {
+    document.getElementById('customLicenseServerUrlInput').value = localStorage.getItem('shakaLicenseUrl') || '';
   }
-
+  
   if ('dash' in params) {
     document.getElementById('streamTypeList').value = 'dash';
     app.loadStream();
@@ -652,6 +682,8 @@ app.loadStream = function() {
   } else {
     app.loadOfflineStream();
   }
+  localStorage.setItem('shakaLicenseUrl', document.getElementById('customLicenseServerUrlInput').value);
+  localStorage.setItem('shakaManifestUrl', document.getElementById('manifestUrlInput').value);
 };
 
 
@@ -685,7 +717,20 @@ app.loadDashStream = function() {
   }
 
   var mediaUrl = document.getElementById('manifestUrlInput').value;
+  var extendedConfig = app.extendedConfigurationManager.getAndStoreConfiguration();
 
+  /*
+{ 
+  "manifestModifier": {
+    "replacements": [{
+      "match": "(\"mp4a\\.40\\.2\")+",
+      "options": "g",
+      "replacement": "\"mp4a.40.5\""
+    }]
+  }
+}
+   */
+  
   console.assert(app.estimator_);
   if (app.estimator_.getDataAge() >= 3600) {
     // Disregard any bandwidth data older than one hour.  The user may have
@@ -697,11 +742,11 @@ app.loadDashStream = function() {
       app.estimator_);
   var abrManager = new shaka.media.SimpleAbrManager();
   app.load_(
-      new shaka.player.DashVideoSource(
+      new shaka.vimond.player.ModifyableDashVideoSource(
           mediaUrl,
           app.interpretContentProtection_,
           estimator,
-          abrManager));
+          abrManager, null, extendedConfig && extendedConfig.manifestModifier));
 };
 
 
@@ -956,7 +1001,14 @@ app.initPlayer_ = function() {
 app.onPlayerError_ = function(event) {
   console.error('Player error', event);
 };
-
+/**
+ * 
+ * @param {shaka.player.DrmInfo.LicenseRequestInfo} info
+ * @private
+ */
+app.licensePreProcessor_ = function(info) {
+  info.headers = { 'Content-Type': 'application/octet-stream' };
+};
 
 /**
  * Called to interpret ContentProtection elements from the MPD.
@@ -968,8 +1020,8 @@ app.onPlayerError_ = function(event) {
 app.interpretContentProtection_ = function(schemeIdUri, contentProtection) {
   var Uint8ArrayUtils = shaka.util.Uint8ArrayUtils;
 
-  var wvLicenseServerUrlOverride =
-      document.getElementById('wvLicenseServerUrlInput').value || null;
+  var licenseServerUrlOverride =
+      document.getElementById('customLicenseServerUrlInput').value || null;
 
   if (schemeIdUri == 'com.youtube.clearkey') {
     // This is the scheme used by YouTube's MediaSource demo.
@@ -1013,7 +1065,7 @@ app.interpretContentProtection_ = function(schemeIdUri, contentProtection) {
       var child = contentProtection.childNodes[i];
       if (child.nodeName == 'yt:SystemURL' &&
           child.getAttribute('type') == 'widevine') {
-        licenseServerUrl = wvLicenseServerUrlOverride || child.textContent;
+        licenseServerUrl = licenseServerUrlOverride || child.textContent;
         break;
       }
     }
@@ -1030,13 +1082,25 @@ app.interpretContentProtection_ = function(schemeIdUri, contentProtection) {
       'urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed') {
     // This is the UUID which represents Widevine in the edash-packager.
     var licenseServerUrl =
-        wvLicenseServerUrlOverride || '//widevine-proxy.appspot.com/proxy';
+        licenseServerUrlOverride || '//widevine-proxy.appspot.com/proxy';
     return [{
       'keySystem': 'com.widevine.alpha',
-      'licenseServerUrl': licenseServerUrl
+      'licenseServerUrl': licenseServerUrl,
+      'licensePreProcessor': app.licensePreProcessor_
     }];
   }
 
+  if (schemeIdUri.toLowerCase() == 'urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95') {
+    console.log('PlayReady content protection data found.');
+    var licenseServerUrl =
+        licenseServerUrlOverride;
+    return [{
+      'keySystem': 'com.microsoft.playready',
+      'licenseServerUrl': licenseServerUrl,
+      'licensePreProcessor': app.licensePreProcessor_
+    }];
+  }
+  
   if (schemeIdUri == 'urn:mpeg:dash:mp4protection:2011') {
     // Ignore without a warning.
     return null;
