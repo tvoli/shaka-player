@@ -22,4 +22,5 @@ cd "$dir"
 python third_party/closure/deps/depswriter.py \
   --root_with_prefix="lib ../../../lib" \
   --root_with_prefix="third_party/closure ../../../third_party/closure" \
+  --root_with_prefix="vimond ../../../vimond" \
   > third_party/closure/goog/deps.js

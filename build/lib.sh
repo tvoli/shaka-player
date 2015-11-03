@@ -84,6 +84,7 @@ set -e
 function library_sources_0() {
   find \
     "$dir"/lib \
+    "$dir"/vimond \
     "$dir"/externs \
     -name '*.js' -print0
 }
