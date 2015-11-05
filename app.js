@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-
+var localStorage = window.localStorage || null;
 /**
  * The application layer of the test application.
  * @class

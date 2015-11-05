@@ -64,7 +64,7 @@ shaka.vimond.dash.PreprocessableMpdRequest.prototype.send = function() {
 shaka.vimond.dash.PreprocessableMpdRequest.prototype.applyPresentationTimeOffsetFix_ = function(mpd) {
     "use strict";
     if (mpd.type === 'static' && mpd.periods && this.presentationTimeOffsetFixMethod_) {
-        mpd.periods.forEach(function(/** @type {shaka.dash.mpd.Period} */ period) {
+        mpd.periods.forEach(function(period) {
             var offset = this.presentationTimeOffsetFixMethod_(period);
             try {
                 if (offset > 0) {
@@ -101,7 +101,7 @@ shaka.vimond.dash.PreprocessableMpdRequest.prototype.findFirstOffsetWithVideo_ =
     'use strict';
     var videoOffset = 0;
     try {
-        period.adaptationSets.forEach(function(/** @type {shaka.dash.mpd.AdaptationSet} */ as) {
+        period.adaptationSets.forEach(function(as) {
             var st = as.segmentTemplate;
             if (st && !st.presentationTimeOffset) {
                 var firstSegment = st.timeline && st.timeline.timePoints && st.timeline.timePoints[0];
@@ -124,7 +124,7 @@ shaka.vimond.dash.PreprocessableMpdRequest.prototype.findLowestOffset_ = functio
     'use strict';
     var lowestOffset = 0;
     try {
-        period.adaptationSets.forEach(function (/** @type {shaka.dash.mpd.AdaptationSet} */ as) {
+        period.adaptationSets.forEach(function (as) {
             var st = as.segmentTemplate;
             if (st && !st.presentationTimeOffset) {
                 var firstSegment = st.timeline && st.timeline.timePoints && st.timeline.timePoints[0];
@@ -145,7 +145,7 @@ shaka.vimond.dash.PreprocessableMpdRequest.prototype.findHighestOffset_ = functi
     'use strict';
     var highestOffset = 0;
     try {
-        period.adaptationSets.forEach(function (/** @type {shaka.dash.mpd.AdaptationSet} */ as) {
+        period.adaptationSets.forEach(function (as) {
             var st = as.segmentTemplate;
             if (st && !st.presentationTimeOffset) {
                 var firstSegment = st.timeline && st.timeline.timePoints && st.timeline.timePoints[0];
