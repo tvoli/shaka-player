@@ -1,6 +1,5 @@
 *.pyc
-third_party/closure/goog/deps.js
-docs/api
-docs/reference
-npm-debug.log
-shaka-player.compiled.*
+node_modules
+dist/
+docs/api/
+coverage/
