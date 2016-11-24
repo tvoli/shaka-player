@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 ## 2.0.1 (2016-10-26)
 
 New features:
@@ -260,7 +258,6 @@ Broken Compatibility compared to v2.0.0-beta:
   - None!
 
 
->>>>>>> upstream/master
 ## 1.6.5 (2016-04-08)
 
 Bugfixes:
@@ -270,8 +267,6 @@ Bugfixes:
     - https://github.com/google/shaka-player/pull/319
 
 
-<<<<<<< HEAD
-=======
 ## 2.0.0-beta (2016-04-07)
 
 New Features:
@@ -332,7 +327,6 @@ Broken Compatibility:
   - Almost everything! (v2 upgrade guide coming soon)
 
 
->>>>>>> upstream/master
 ## 1.6.4 (2016-03-03)
 
 Bugfixes:
@@ -1072,4 +1066,3 @@ Broken Compatibility:
 ## 0.1b (2014-11-21)
 
 Private beta release.
-
