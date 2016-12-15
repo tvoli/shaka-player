@@ -102,7 +102,9 @@ shakaExtern.Stats;
  *   width: ?number,
  *   height: ?number,
  *   frameRate: ?number,
- *   codecs: ?string
+ *   codecs: ?string,
+ *   sar: ?number,
+ *   par: ?number
  * }}
  *
  * @description
@@ -135,6 +137,10 @@ shakaExtern.Stats;
  *   The video framerate provided in the manifest, if present.
  * @property {?string} codecs
  *   The audio/video codecs string provided in the manifest, if present.
+ * @property {?number} sar
+ *   The video aspect ratio provided in the manifest, if present.
+ * @property {?number} par
+ *   The video aspect ratio provided in the manifest, if present.
  * @exportDoc
  */
 shakaExtern.Track;
