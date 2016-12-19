@@ -124,22 +124,22 @@ describe('NetworkingEngine', /** @suppress {accessControls} */ function() {
 
     describe('backoff', function() {
       var baseDelay = 200;
-      var realSetTimeout;
+      var origSetTimeout;
       var setTimeoutSpy;
       var realRandom;
 
       beforeAll(function() {
-        realSetTimeout = window.setTimeout;
+        origSetTimeout = shaka.net.NetworkingEngine.setTimeout_;
         setTimeoutSpy = jasmine.createSpy('setTimeout');
-        setTimeoutSpy.and.callFake(realSetTimeout);
-        window.setTimeout = setTimeoutSpy;
+        setTimeoutSpy.and.callFake(origSetTimeout);
+        shaka.net.NetworkingEngine.setTimeout_ = setTimeoutSpy;
         realRandom = Math.random;
         Math.random = function() { return 0.75; };
       });
 
       afterAll(function() {
         Math.random = realRandom;
-        window.setTimeout = realSetTimeout;
+        shaka.net.NetworkingEngine.setTimeout_ = origSetTimeout;
       });
 
       beforeEach(function() {

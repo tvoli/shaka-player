@@ -22,6 +22,7 @@ describe('Player', function() {
   var logErrorSpy;
   var logWarnSpy;
   var manifest;
+  var onError;
   var player;
   var networkingEngine;
   var streamingEngine;
@@ -81,6 +82,12 @@ describe('Player', function() {
 
     abrManager = new shaka.test.FakeAbrManager();
     player.configure({abr: {manager: abrManager}});
+
+    onError = jasmine.createSpy('error event');
+    onError.and.callFake(function(event) {
+      fail(event.detail);
+    });
+    player.addEventListener('error', onError);
   });
 
   afterEach(function(done) {
@@ -656,9 +663,12 @@ describe('Player', function() {
           .addStreamSet('text')
             .language('es')
             .addStream(6).bandwidth(100).kind('caption')
+                         .mime('text/vtt')
           .addStreamSet('text')
             .language('en')
             .addStream(7).bandwidth(100).kind('caption')
+                         .mime('application/ttml+xml')
+          // Both text tracks should remain, even with different MIME types.
         .build();
 
       tracks = [
@@ -672,7 +682,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: 'avc1.4d401f'
+          codecs: 'mp4a.40.2'
         },
         {
           id: 2,
@@ -684,7 +694,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: 'avc1.4d401f'
+          codecs: 'mp4a.40.2'
         },
         {
           id: 4,
@@ -720,7 +730,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: 'avc1.4d401f'
+          codecs: null
         },
         {
           id: 7,
@@ -732,7 +742,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: 'avc1.4d401f'
+          codecs: null
         }
       ];
     });
@@ -1294,7 +1304,6 @@ describe('Player', function() {
     });
 
     it('issues error if no streams are playable', function() {
-      var onError = jasmine.createSpy('error event');
       onError.and.callFake(function(e) {
         var error = e.detail;
         shaka.test.Util.expectToEqualError(
@@ -1303,7 +1312,6 @@ describe('Player', function() {
                 shaka.util.Error.Category.MANIFEST,
                 shaka.util.Error.Code.RESTRICTIONS_CANNOT_BE_MET));
       });
-      player.addEventListener('error', onError);
 
       player.configure(
           {restrictions: {maxAudioBandwidth: 0, maxVideoBandwidth: 0}});
@@ -1348,9 +1356,10 @@ describe('Player', function() {
       var timeline = new shaka.media.PresentationTimeline(300, 0);
       timeline.setStatic(false);
       manifest = new shaka.test.ManifestGenerator()
-                      .setTimeline(timeline)
-                      .addPeriod(0)
-                      .build();
+          .setTimeline(timeline)
+          .addPeriod(0)
+            .addStreamSet('video').addStream(1)
+          .build();
       goog.asserts.assert(manifest, 'manifest must be non-null');
       var parser = new shaka.test.FakeManifestParser(manifest);
       var factory = function() { return parser; };
@@ -1360,6 +1369,55 @@ describe('Player', function() {
     it('gets current wall clock time in UTC', function() {
       var liveTimeUtc = player.getPlayheadTimeAsDate();
       expect(liveTimeUtc).toEqual(new Date(320000));
+    });
+  });
+
+  it('rejects empty manifests', function(done) {
+    var emptyManifest = new shaka.test.ManifestGenerator().build();
+    var emptyParser = new shaka.test.FakeManifestParser(emptyManifest);
+    var emptyFactory = function() { return emptyParser; };
+
+    player.load('', 0, emptyFactory).then(fail).catch(function(error) {
+      shaka.test.Util.expectToEqualError(
+          error,
+          new shaka.util.Error(
+              shaka.util.Error.Category.MANIFEST,
+              shaka.util.Error.Code.NO_PERIODS));
+    }).then(done);
+  });
+
+  it('does not error on unknown contentTypes', function(done) {
+    manifest = new shaka.test.ManifestGenerator()
+      .addPeriod(0)
+        .addStreamSet('audio')
+          .addStream(1)
+        .addStreamSet('video')
+          .addStream(2)
+        .addStreamSet('application')
+          .addStream(3).mime('application/mp4', 'wvtt')
+      .build();
+    var parser = new shaka.test.FakeManifestParser(manifest);
+    var factory = function() { return parser; };
+
+    abrManager.chooseStreams.and.callFake(function(streamSetsByType) {
+      // Emulate the real AbrManager and ignore strange content types.
+      // Only return 'audio' and 'video', in this case.
+      return {
+        'audio': streamSetsByType['audio'].streams[0],
+        'video': streamSetsByType['video'].streams[0]
+      };
+    });
+
+    player.load('', 0, factory).catch(fail).then(function() {
+      // For this test to be valid, the 'application' stream set must not be
+      // filtered out as unsupported.  There should be 3 sets:
+      expect(manifest.periods[0].streamSets.length).toBe(3);
+      // Now ask AbrManager to choose streams.
+      chooseStreams();
+      // Expect that streams were chosen and no error was dispatched.
+      expect(abrManager.chooseStreams).toHaveBeenCalled();
+      expect(onError).not.toHaveBeenCalled();
+      done();
     });
   });
 
