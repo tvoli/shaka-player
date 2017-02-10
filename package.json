@@ -44,6 +44,6 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "prepublish": "./build/build.sh"
+    "prepublish": "./build/build.py"
   }
 }
