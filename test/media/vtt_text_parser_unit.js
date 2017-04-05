@@ -17,22 +17,22 @@
 
 describe('VttTextParser', function() {
   var logWarningSpy;
-  var originalCueConstructor;
+  var originalVTTCue;
 
   beforeAll(function() {
-    originalCueConstructor = shaka.media.TextEngine.CueConstructor;
+    originalVTTCue = window.VTTCue;
 
     logWarningSpy = jasmine.createSpy('shaka.log.warning');
     shaka.log.warning = logWarningSpy;
   });
 
   afterAll(function() {
-    shaka.media.TextEngine.CueConstructor = originalCueConstructor;
+    window.VTTCue = originalVTTCue;
   });
 
   beforeEach(function() {
     logWarningSpy.calls.reset();
-    shaka.media.TextEngine.CueConstructor = function(start, end, text) {
+    window.VTTCue = function(start, end, text) {
       this.startTime = start;
       this.endTime = end;
       this.text = text;
@@ -356,7 +356,7 @@ describe('VttTextParser', function() {
         'WEBVTT\n\n' +
         '0:00:20.000 --> 0:00:40.000 align:center size:56% vertical:lr\n' +
         'Test',
-        undefined,
+        /* offset */ 7,  // ignored when using relative timestamps
         20,
         true);
   });

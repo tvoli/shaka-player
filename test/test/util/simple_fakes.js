@@ -159,12 +159,12 @@ shaka.test.FakeStreamingEngine = function(period) {
 
   var ret = jasmine.createSpyObj('fakeStreamingEngine', [
     'destroy', 'configure', 'init', 'getCurrentPeriod', 'getActiveStreams',
-    'notifyNewTextStream', 'switch', 'seeked'
+    'notifyNewStream', 'switch', 'seeked'
   ]);
   ret.destroy.and.callFake(resolve);
   ret.getCurrentPeriod.and.returnValue(period);
   ret.getActiveStreams.and.returnValue(activeStreams);
-  ret.notifyNewTextStream.and.callFake(resolve);
+  ret.notifyNewStream.and.callFake(resolve);
   ret.switch.and.callFake(function(type, stream) {
     activeStreams[type] = stream;
   });
@@ -213,15 +213,13 @@ shaka.test.FakeManifestParser.prototype.configure = function() {};
 
 /**
  * Creates a fake video element.
- * @param {number=} opt_currentTime
  * @return {!HTMLVideoElement}
  * @suppress {invalidCasts}
  */
-function createMockVideo(opt_currentTime) {
+function createMockVideo() {
   var video = {
     src: '',
     textTracks: [],
-    currentTime: opt_currentTime || 0,
     addTextTrack: jasmine.createSpy('addTextTrack'),
     addEventListener: jasmine.createSpy('addEventListener'),
     removeEventListener: jasmine.createSpy('removeEventListener'),

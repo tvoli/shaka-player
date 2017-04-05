@@ -232,7 +232,8 @@ shakaAssets.YouTubeCallback = function(node) {
     for (var i = 0; i < node.childNodes.length; ++i) {
       var child = node.childNodes[i];
       if (child.nodeName == 'yt:SystemURL') {
-        var licenseServerUri = child.textContent;
+        // The URL may be http, but the demo app requires https.
+        var licenseServerUri = child.textContent.replace(/^http:/, 'https:');
         var typeAttr = child.getAttribute('type');
         var keySystem;
         // NOTE: Ignoring clearkey type here because this YT demo content does
@@ -801,6 +802,20 @@ shakaAssets.testAssets = [
       shakaAssets.Feature.SEGMENT_TEMPLATE_TIMELINE
     ]
   },
+  {
+    name: 'Live sim (multi-period)',
+    manifestUri: '//vm2.dashif.org/livesim/utc_head/periods_20/testpic_2s/Manifest.mpd',  // gjslint: disable=110
+
+    encoder: shakaAssets.Encoder.UNKNOWN,
+    source: shakaAssets.Source.DASH_IF,
+    drm: [],
+    features: [
+      shakaAssets.Feature.LIVE,
+      shakaAssets.Feature.MP4,
+      shakaAssets.Feature.MULTIPERIOD,
+      shakaAssets.Feature.SEGMENT_TEMPLATE_TIMELINE
+    ]
+  },
   // }}}
 
   // Wowza assets {{{
@@ -1033,6 +1048,4 @@ shakaAssets.testAssets = [
     ]
   }
   // }}}
-
-  // TODO: Add a stable live stream with multiple periods.
 ];

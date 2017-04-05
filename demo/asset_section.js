@@ -15,6 +15,13 @@
  * limitations under the License.
  */
 
+/**
+ * @fileoverview Shaka Player demo, main section.
+ *
+ * @suppress {visibility} to work around compiler errors until we can
+ *   refactor the demo into classes that talk via public method.  TODO
+ */
+
 
 /** @suppress {duplicate} */
 var shakaDemo = shakaDemo || {};
@@ -156,6 +163,11 @@ shakaDemo.preparePlayer_ = function(asset) {
 
   player.configure(config);
 
+  // TODO: document demo app debugging features
+  if (window.debugConfig) {
+    player.configure(window.debugConfig);
+  }
+
   return asset;
 };
 
@@ -181,6 +193,12 @@ shakaDemo.load = function() {
       player.addTextTrack(extraText.uri, extraText.language, extraText.kind,
                           extraText.mime, extraText.codecs);
     });
+
+    // Check if browser supports Media Session first.
+    if ('mediaSession' in navigator) {
+      // Set media session title.
+      navigator.mediaSession.metadata = new MediaMetadata({title: asset.name});
+    }
   }, function(reason) {
     var error = /** @type {!shaka.util.Error} */(reason);
     if (error.code == shaka.util.Error.Code.LOAD_INTERRUPTED) {
@@ -189,4 +207,11 @@ shakaDemo.load = function() {
       shakaDemo.onError_(error);
     }
   });
+
+  // While the manifest is being loaded in parallel, go ahead and ask the video
+  // to play.  This can help with autoplay on Android, since Android requires
+  // user interaction to play a video and this function is called from a click
+  // event.  This seems to work only because Shaka Player has already created a
+  // MediaSource object and set video.src.
+  shakaDemo.video_.play();
 };

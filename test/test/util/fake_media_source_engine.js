@@ -71,7 +71,6 @@ shaka.test.FakeMediaSourceEngine = function(segmentData, opt_drift) {
 
   spyOn(this, 'destroy').and.callThrough();
   spyOn(this, 'init').and.callThrough();
-  spyOn(this, 'reinitText').and.callThrough();
   spyOn(this, 'bufferStart').and.callThrough();
   spyOn(this, 'bufferEnd').and.callThrough();
   spyOn(this, 'bufferedAheadOf').and.callThrough();
@@ -123,10 +122,6 @@ shaka.test.FakeMediaSourceEngine.prototype.init = function() {};
 
 
 /** @override */
-shaka.test.FakeMediaSourceEngine.prototype.reinitText = function() {};
-
-
-/** @override */
 shaka.test.FakeMediaSourceEngine.prototype.bufferStart = function(type) {
   if (this.segments[type] === undefined) throw new Error('unexpected type');
 
@@ -155,21 +150,27 @@ shaka.test.FakeMediaSourceEngine.prototype.bufferedAheadOf = function(
     type, start, opt_tolerance) {
   if (this.segments[type] === undefined) throw new Error('unexpected type');
 
+  var hasSegment = (function(i) {
+    return this.segments[type][i] ||
+        (type === 'video' && this.segments['trickvideo'] &&
+         this.segments['trickvideo'][i]);
+  }.bind(this));
+
   var tolerance = 0;
   // Note: |start| may equal the end of the last segment, so |first|
   // may equal segments[type].length
   var first = this.toIndex_(type, start);
-  if (!this.segments[type][first] && opt_tolerance) {
+  if (!hasSegment(first) && opt_tolerance) {
     first = this.toIndex_(type, start + opt_tolerance);
     tolerance = opt_tolerance;
   }
-  if (!this.segments[type][first])
+  if (!hasSegment(first))
     return 0;  // Unbuffered.
 
   // Find the first gap.
-  var last = this.segments[type].indexOf(false, first);
-  if (last < 0)
-    last = this.segments[type].length;  // Buffered everything.
+  var last = first;
+  while (last < this.segments[type].length && hasSegment(last))
+    last++;
 
   return this.toTime_(type, last) - start + tolerance;
 };
@@ -311,4 +312,3 @@ shaka.test.FakeMediaSourceEngine.prototype.toIndex_ = function(type, ts) {
 shaka.test.FakeMediaSourceEngine.prototype.toTime_ = function(type, i) {
   return this.drift_ + (i * this.segmentData[type].segmentDuration);
 };
-

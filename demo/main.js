@@ -15,6 +15,13 @@
  * limitations under the License.
  */
 
+/**
+ * @fileoverview Shaka Player demo, main section.
+ *
+ * @suppress {visibility} to work around compiler errors until we can
+ *   refactor the demo into classes that talk via public method.  TODO
+ */
+
 
 /** @suppress {duplicate} */
 var shakaDemo = shakaDemo || {};
@@ -42,6 +49,10 @@ shakaDemo.support_;
 
 /** @private {ShakaControls} */
 shakaDemo.controls_ = null;
+
+
+/** @private {?number} */
+shakaDemo.lastMousePressTime_ = null;
 
 
 /**
@@ -106,6 +117,15 @@ shakaDemo.init = function() {
   shakaDemo.setupLogging_();
 
   shaka.polyfill.installAll();
+
+  // Listen to events to automatically blur elements focused by mouse input.
+  // This is to prevent the borders from showing up when not needed, as they
+  // are distracting for the user (not to mention fairly ugly).
+  // Because of event bubbling, this will implicitly listen to child elements.
+  document.body.addEventListener(
+      'focus', shakaDemo.onFocus_.bind(shakaDemo), true /* capture phase */);
+  document.body.addEventListener(
+      'mousedown', shakaDemo.onMouseDown_.bind(shakaDemo));
 
   if (!shaka.Player.isBrowserSupported()) {
     var errorDisplayLink = document.getElementById('errorDisplayLink');
@@ -177,6 +197,42 @@ shakaDemo.init = function() {
         shakaDemo.load();
       }
     });
+  }
+};
+
+
+/**
+  * @param {!Event} event
+  * @private
+  */
+shakaDemo.onFocus_ = function(event) {
+  if (shakaDemo.lastMousePressTime_ > Date.now() - 10) {
+    // We don't want control elements to stay selected when clicked on
+    // because the selection borders are ugly and should only be shown
+    // when actually necessary (i.e. keyboard navigation).
+
+    if (document.activeElement.type != 'text') {
+      document.activeElement.blur();
+    }
+  }
+};
+
+
+/**
+  * @param {!Event} event
+  * @private
+  */
+shakaDemo.onMouseDown_ = function(event) {
+  shakaDemo.lastMousePressTime_ = Date.now();
+
+  if (document.activeElement) {
+    // There's something selected already, perhaps due to
+    // switching from keyboard controls to mouse controls.
+    // Un-select that thing.
+    // Otherwise, clicking on a focused element won't un-focus
+    // it, since clicking on a focused element doesn't issue a
+    // focus event.
+    document.activeElement.blur();
   }
 };
 

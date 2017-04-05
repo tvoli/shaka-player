@@ -21,7 +21,6 @@ describe('SimpleAbrManager', function() {
   var audioStreamSet;
   var videoStreamSet;
   var streamSetsByType;
-  var sufficientBWMultiplier = 1.06;
 
   beforeAll(function() {
     jasmine.clock().install();
@@ -123,12 +122,10 @@ describe('SimpleAbrManager', function() {
 
     // Simulate some segments being downloaded just above the desired
     // bandwidth.
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
+    var bytesPerSecond = 1.1 * (audioBandwidth + videoBandwidth) / 8.0;
 
     var bandwidthKbps = (audioBandwidth + videoBandwidth) / 1000.0;
-    var description =
-        'picks correct video Stream at ' + bandwidthKbps + ' kbps';
+    var description = 'picks correct Stream at ' + bandwidthKbps + ' kbps';
 
     it(description, function() {
       abrManager.chooseStreams(streamSetsByType);
@@ -149,97 +146,11 @@ describe('SimpleAbrManager', function() {
       });
     });
   });
-
-  [5e5, 6e5].forEach(function(audioBandwidth) {
-    var videoBandwidth = 1e6;
-
-    // Simulate some segments being downloaded just above the desired
-    // bandwidth.
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
-
-    var bandwidthKbps = (audioBandwidth + videoBandwidth) / 1000.0;
-    var description =
-        'picks correct audio Stream at ' + bandwidthKbps + ' kbps';
-
-    it(description, function() {
-      abrManager.chooseStreams(streamSetsByType);
-
-      abrManager.segmentDownloaded(0, 1000, bytesPerSecond);
-      abrManager.segmentDownloaded(1000, 2000, bytesPerSecond);
-
-      abrManager.enable();
-
-      // Make another call to segmentDownloaded() so switchCallback() is
-      // called.
-      abrManager.segmentDownloaded(3000, 4000, bytesPerSecond);
-
-      expect(switchCallback).toHaveBeenCalled();
-      expect(switchCallback.calls.argsFor(0)[0]).toEqual({
-        'audio': jasmine.objectContaining({bandwidth: audioBandwidth}),
-        'video': jasmine.objectContaining({bandwidth: videoBandwidth})
-      });
-    });
-  });
-
-  it('can handle 0 duration segments', function() {
-    var audioBandwidth = 5e5;
-    var videoBandwidth = 2e6;
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
-
-    abrManager.chooseStreams(streamSetsByType);
-
-    // 0 duration segment shouldn't cause us to get stuck on the lowest variant
-    abrManager.segmentDownloaded(1000, 1000, bytesPerSecond);
-    abrManager.segmentDownloaded(2000, 3000, bytesPerSecond);
-
-    abrManager.enable();
-
-    abrManager.segmentDownloaded(4000, 5000, bytesPerSecond);
-
-    expect(switchCallback).toHaveBeenCalled();
-    expect(switchCallback.calls.argsFor(0)[0]).toEqual({
-      'audio': jasmine.objectContaining({bandwidth: audioBandwidth}),
-      'video': jasmine.objectContaining({bandwidth: videoBandwidth})
-    });
-  });
-
-  it('picks lowest audio Stream when there is insufficient bandwidth',
-      function() {
-        // The lowest audio track will only be chosen if needed to fit the
-        // the lowest video track.
-        var audioBandwidth = 4e5;
-        var videoBandwidth = 5e5;
-
-        // Simulate some segments being downloaded just above the desired
-        // bandwidth.
-        var bytesPerSecond =
-            sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
-
-        abrManager.chooseStreams(streamSetsByType);
-
-        abrManager.segmentDownloaded(0, 1000, bytesPerSecond);
-        abrManager.segmentDownloaded(1000, 2000, bytesPerSecond);
-
-        abrManager.enable();
-
-        // Make another call to segmentDownloaded() so switchCallback() is
-        // called.
-        abrManager.segmentDownloaded(3000, 4000, bytesPerSecond);
-
-        expect(switchCallback).toHaveBeenCalled();
-        expect(switchCallback.calls.argsFor(0)[0]).toEqual({
-          'audio': jasmine.objectContaining({bandwidth: audioBandwidth}),
-          'video': jasmine.objectContaining({bandwidth: videoBandwidth})
-        });
-      });
 
   it('does not call switchCallback() if not enabled', function() {
     var audioBandwidth = 5e5;
     var videoBandwidth = 2e6;
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
+    var bytesPerSecond = 1.1 * (audioBandwidth + videoBandwidth) / 8.0;
 
     abrManager.chooseStreams(streamSetsByType);
 
@@ -253,8 +164,7 @@ describe('SimpleAbrManager', function() {
   it('does not call switchCallback() in switch interval', function() {
     var audioBandwidth = 5e5;
     var videoBandwidth = 3e6;
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
+    var bytesPerSecond = 1.1 * (audioBandwidth + videoBandwidth) / 8.0;
 
     abrManager.chooseStreams(streamSetsByType);
 
@@ -270,16 +180,10 @@ describe('SimpleAbrManager', function() {
     // Simulate drop in bandwidth.
     audioBandwidth = 5e5;
     videoBandwidth = 1e6;
-    bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
+    bytesPerSecond = 0.9 * (audioBandwidth + videoBandwidth) / 8.0;
 
-    abrManager.segmentDownloaded(4000, 5000, bytesPerSecond);
     abrManager.segmentDownloaded(5000, 6000, bytesPerSecond);
-    abrManager.segmentDownloaded(6000, 7000, bytesPerSecond);
     abrManager.segmentDownloaded(7000, 8000, bytesPerSecond);
-    abrManager.segmentDownloaded(8000, 9000, bytesPerSecond);
-    abrManager.segmentDownloaded(9000, 10000, bytesPerSecond);
-    abrManager.segmentDownloaded(10000, 11000, bytesPerSecond);
 
     // Stay inside switch interval.
     shaka.test.Util.fakeEventLoop(
@@ -304,8 +208,7 @@ describe('SimpleAbrManager', function() {
     // upgrade.
     var audioBandwidth = 5e5;
     var videoBandwidth = 4e6;
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
+    var bytesPerSecond = 1.1 * (audioBandwidth + videoBandwidth) / 8.0;
 
     abrManager.chooseStreams(streamSetsByType);
 
@@ -328,8 +231,7 @@ describe('SimpleAbrManager', function() {
     // downgrade.
     var audioBandwidth = 5e5;
     var videoBandwidth = 5e5;
-    var bytesPerSecond =
-        sufficientBWMultiplier * (audioBandwidth + videoBandwidth) / 8.0;
+    var bytesPerSecond = 1.1 * (audioBandwidth + videoBandwidth) / 8.0;
 
     // Set the default high so that the initial choice will be high-quality.
     abrManager.setDefaultEstimate(4e6);
@@ -347,5 +249,28 @@ describe('SimpleAbrManager', function() {
     // The second parameter is missing to indicate that the buffer should not be
     // cleared.
     expect(switchCallback).toHaveBeenCalledWith(jasmine.any(Object));
+  });
+
+  it('can handle 0 duration segments', function() {
+    var audioBandwidth = 5e5;
+    var videoBandwidth = 2e6;
+    var bytesPerSecond =
+        1.1 * (audioBandwidth + videoBandwidth) / 8.0;
+
+    abrManager.chooseStreams(streamSetsByType);
+
+    // 0 duration segment shouldn't cause us to get stuck on the lowest variant
+    abrManager.segmentDownloaded(1000, 1000, bytesPerSecond);
+    abrManager.segmentDownloaded(2000, 3000, bytesPerSecond);
+
+    abrManager.enable();
+
+    abrManager.segmentDownloaded(4000, 5000, bytesPerSecond);
+
+    expect(switchCallback).toHaveBeenCalled();
+    expect(switchCallback.calls.argsFor(0)[0]).toEqual({
+      'audio': jasmine.objectContaining({bandwidth: audioBandwidth}),
+      'video': jasmine.objectContaining({bandwidth: videoBandwidth})
+    });
   });
 });

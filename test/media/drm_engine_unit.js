@@ -106,7 +106,6 @@ describe('DrmEngine', function() {
         fakeNetEngine, onErrorSpy, onKeyStatusSpy);
     config = {
       retryParameters: retryParameters,
-      delayLicenseRequestUntilPlayed: false,
       servers: {
         'drm.abc': 'http://abc.drm/license',
         'drm.def': 'http://def.drm/license'
@@ -186,9 +185,15 @@ describe('DrmEngine', function() {
 
       drmEngine.init(manifest, /* offline */ false).then(function() {
         expect(drmEngine.initialized()).toBe(true);
-        expect(drmEngine.getSupportedTypes()).toEqual([
-          'audio/webm', 'video/mp4; codecs="fake"'
-        ]);
+        var supportedTypes = drmEngine.getSupportedTypes();
+        // This is conditional because Edge 14 has a bug that prevents us from
+        // getting the types at all.  TODO: Remove the condition once Edge has
+        // released a fix for https://goo.gl/qMeV7v
+        if (supportedTypes) {
+          expect(supportedTypes).toEqual([
+            'audio/webm', 'video/mp4; codecs="fake"'
+          ]);
+        }
       }).catch(fail).then(done);
     });
 
@@ -1388,6 +1393,39 @@ describe('DrmEngine', function() {
       }).catch(fail).then(done);
       // onError is a failure by default.
     });
+
+    it('still completes if session is not callable', function(done) {
+      // Before, we would use |session.closed| as part of destroy().  However,
+      // this doesn't work if the session is not callable (no license request
+      // sent).  So |session.closed| should never resolve and |session.close()|
+      // should be rejected and destroy() should still succeed.
+      // https://github.com/google/shaka-player/issues/664
+      initAndAttach().then(function() {
+        session1.closed = new shaka.util.PublicPromise();
+        session2.closed = new shaka.util.PublicPromise();
+        session1.close.and.returnValue(Promise.reject());
+        session2.close.and.returnValue(Promise.reject());
+
+        var initData1 = new Uint8Array(1);
+        var initData2 = new Uint8Array(2);
+        mockVideo.on['encrypted'](
+            { initDataType: 'webm', initData: initData1 });
+        mockVideo.on['encrypted'](
+            { initDataType: 'webm', initData: initData2 });
+
+        // Still resolve these since we are mocking close and closed.  This
+        // ensures DrmEngine is in the correct state.
+        var message = new Uint8Array(0);
+        session1.on['message']({ target: session1, message: message });
+        session1.update.and.returnValue(Promise.resolve());
+        session2.on['message']({ target: session2, message: message });
+        session2.update.and.returnValue(Promise.resolve());
+
+        return shaka.test.Util.delay(0.5);
+      }).then(function() {
+        return drmEngine.destroy();
+      }).catch(fail).then(done);
+    });
   });  // describe('destroy')
 
   describe('getDrmInfo', function() {
@@ -1426,77 +1464,79 @@ describe('DrmEngine', function() {
     });
   });  // describe('getDrmInfo')
 
-  describe('configure', function() {
-    it('delays initial license requests if configured to', function(done) {
-      config.delayLicenseRequestUntilPlayed = true;
-      drmEngine.configure(config);
-      mockVideo.paused = true;
+  describe('removeSessions', function() {
+    var updatePromise1, updatePromise2;
 
-      initAndAttach().then(function() {
-        var initData = new Uint8Array(0);
-        mockVideo.on['encrypted'](
-            { initDataType: 'webm', initData: initData });
+    beforeEach(function(done) {
+      session1.load.and.returnValue(Promise.resolve(true));
+      session2.load.and.returnValue(Promise.resolve(true));
 
-        fakeNetEngine.request.and.returnValue(new shaka.util.PublicPromise());
-        var message = new Uint8Array(0);
-        session1.on['message']({ message: message });
+      // When remove() is called, it should resolve quickly and raise a
+      // 'message' event of type 'license-release'.  The removeSessions method
+      // should wait until update() is complete with the response.
+      updatePromise1 = new shaka.util.PublicPromise();
+      updatePromise2 = new shaka.util.PublicPromise();
+      session1.remove.and.callFake(function() {
+        // Raise the event synchronously, even though it doesn't normally.
+        session1.on['message']({target: session1, message: new ArrayBuffer(0)});
+        session1.update.and.returnValue(updatePromise1);
+        return Promise.resolve();
+      });
+      session2.remove.and.callFake(function() {
+        session2.on['message']({target: session2, message: new ArrayBuffer(0)});
+        session2.update.and.returnValue(updatePromise2);
+        return Promise.resolve();
+      });
 
-        expect(fakeNetEngine.request).not.toHaveBeenCalled();
+      drmEngine.init(manifest, /* offline */ true).catch(fail).then(done);
+    });
 
-        mockVideo.on['play']();
+    it('waits until update() is complete', function(done) {
+      shaka.test.Util.delay(0.1).then(
+          updatePromise1.resolve.bind(updatePromise1));
+      shaka.test.Util.delay(0.3).then(
+          updatePromise2.resolve.bind(updatePromise2));
 
-        expect(fakeNetEngine.request).toHaveBeenCalledWith(
-            shaka.net.NetworkingEngine.RequestType.LICENSE,
-            jasmine.objectContaining({
-              uris: ['http://abc.drm/license'],
-              method: 'POST',
-              body: message
-            }));
+      drmEngine.removeSessions(['abc', 'def']).then(function() {
+        expect(session1.update).toHaveBeenCalled();
+        expect(session2.update).toHaveBeenCalled();
       }).catch(fail).then(done);
     });
 
-    it('does not delay license renewal requests', function(done) {
-      config.delayLicenseRequestUntilPlayed = true;
-      drmEngine.configure(config);
-      mockVideo.paused = true;
+    it('is rejected when network request fails', function(done) {
+      var p = fakeNetEngine.delayNextRequest();
+      var networkError = new shaka.util.Error(
+          shaka.util.Error.Category.NETWORK,
+          shaka.util.Error.Code.BAD_HTTP_STATUS);
+      p.reject(networkError);
+      onErrorSpy.and.stub();
 
-      initAndAttach().then(function() {
-        var initData = new Uint8Array(0);
-        mockVideo.on['encrypted'](
-            { initDataType: 'webm', initData: initData });
-
-        fakeNetEngine.request.and.returnValue(new shaka.util.PublicPromise());
-        var message = new Uint8Array(0);
-        session1.on['message']({ message: message });
-
-        expect(fakeNetEngine.request).not.toHaveBeenCalled();
-
-        mockVideo.on['play']();
-
-        expect(fakeNetEngine.request).toHaveBeenCalledWith(
-            shaka.net.NetworkingEngine.RequestType.LICENSE,
-            jasmine.objectContaining({
-              uris: ['http://abc.drm/license'],
-              method: 'POST',
-              body: message
-            }));
-
-        fakeNetEngine.request.calls.reset();
-
-        mockVideo.paused = true;
-        session1.on['message']({ message: message });
-
-        expect(fakeNetEngine.request).toHaveBeenCalledWith(
-            shaka.net.NetworkingEngine.RequestType.LICENSE,
-            jasmine.objectContaining({
-              uris: ['http://abc.drm/license'],
-              method: 'POST',
-              body: message
-            }));
-        expect(fakeNetEngine.request.calls.count()).toBe(1);
+      drmEngine.removeSessions(['abc', 'def']).then(fail).catch(function(err) {
+        shaka.test.Util.expectToEqualError(
+            err,
+            new shaka.util.Error(
+                shaka.util.Error.Category.DRM,
+                shaka.util.Error.Code.LICENSE_REQUEST_FAILED,
+                networkError));
+        // The first session's request was rejected.
+        expect(session1.update).not.toHaveBeenCalled();
       }).catch(fail).then(done);
     });
-  }); // describe('configure')
+
+    it('is rejected when update() is rejected', function(done) {
+      updatePromise1.reject({message: 'Error'});
+      onErrorSpy.and.stub();
+
+      drmEngine.removeSessions(['abc', 'def']).then(fail).catch(function(err) {
+        shaka.test.Util.expectToEqualError(
+            err,
+            new shaka.util.Error(
+                shaka.util.Error.Category.DRM,
+                shaka.util.Error.Code.LICENSE_RESPONSE_REJECTED,
+                'Error'));
+      }).catch(fail).then(done);
+    });
+  });
 
   function initAndAttach() {
     return drmEngine.init(manifest, /* offline */ false).then(function() {

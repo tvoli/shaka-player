@@ -293,20 +293,6 @@ shaka.test.ManifestGenerator.prototype.addCencInitData = function(base64) {
 shaka.test.ManifestGenerator.prototype.addStream = function(id) {
   this.finishPartialStream_();
   var streamSet = this.currentStreamSet_();
-
-  var defaultMimeType = 'text/plain';
-  var defaultCodecs = '';
-
-  if (streamSet.type == 'audio') {
-    defaultMimeType = 'audio/mp4';
-    defaultCodecs = 'mp4a.40.2';
-  } else if (streamSet.type == 'video') {
-    defaultMimeType = 'video/mp4';
-    defaultCodecs = 'avc1.4d401f';
-  } else if (streamSet.type == 'text') {
-    defaultMimeType = 'text/vtt';
-  }
-
   /** @type {shakaExtern.Stream} */
   var stream = {
     id: id,
@@ -315,8 +301,8 @@ shaka.test.ManifestGenerator.prototype.addStream = function(id) {
     getSegmentReference: jasmine.createSpy('getSegmentReference'),
     initSegmentReference: null,
     presentationTimeOffset: 0,
-    mimeType: defaultMimeType,
-    codecs: defaultCodecs,
+    mimeType: 'video/mp4',
+    codecs: 'avc1.4d401f',
     frameRate: undefined,
     bandwidth: 100,
     width: undefined,

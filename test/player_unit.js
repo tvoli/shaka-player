@@ -77,7 +77,7 @@ describe('Player', function() {
       };
     }
 
-    video = createMockVideo(20);
+    video = createMockVideo();
     player = new shaka.Player(video, dependencyInjector);
 
     abrManager = new shaka.test.FakeAbrManager();
@@ -120,6 +120,37 @@ describe('Player', function() {
       checkError = jasmine.createSpy('checkError');
       checkError.and.callFake(function(error) {
         expect(error.code).toBe(shaka.util.Error.Code.LOAD_INTERRUPTED);
+      });
+    });
+
+    it('won\'t start loading until unloading is done', function(done) {
+      // There was a bug when calling unload before calling load would cause
+      // the load to continue before the (first) unload was complete.
+      // https://github.com/google/shaka-player/issues/612
+      player.load('', 0, factory1).then(function() {
+        // Delay the promise to destroy the parser.
+        var p = new shaka.util.PublicPromise();
+        parser1.stop.and.returnValue(p);
+
+        var unloadDone = false;
+        spyOn(player, 'createMediaSourceEngine');
+
+        shaka.test.Util.delay(0.5).then(function() {
+          // Should not start loading yet.
+          expect(player.createMediaSourceEngine).not.toHaveBeenCalled();
+
+          // Unblock the unload chain.
+          unloadDone = true;
+          p.resolve();
+        });
+
+        // Explicitly unload the player first.  When load calls unload, it
+        // should wait until the parser is destroyed.
+        player.unload();
+        player.load('', 0, factory2).then(function() {
+          expect(unloadDone).toBe(true);
+          done();
+        });
       });
     });
 
@@ -663,12 +694,9 @@ describe('Player', function() {
           .addStreamSet('text')
             .language('es')
             .addStream(6).bandwidth(100).kind('caption')
-                         .mime('text/vtt')
           .addStreamSet('text')
             .language('en')
             .addStream(7).bandwidth(100).kind('caption')
-                         .mime('application/ttml+xml')
-          // Both text tracks should remain, even with different MIME types.
         .build();
 
       tracks = [
@@ -682,7 +710,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: 'mp4a.40.2'
+          codecs: 'avc1.4d401f'
         },
         {
           id: 2,
@@ -694,7 +722,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: 'mp4a.40.2'
+          codecs: 'avc1.4d401f'
         },
         {
           id: 4,
@@ -730,7 +758,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: null
+          codecs: 'avc1.4d401f'
         },
         {
           id: 7,
@@ -742,7 +770,7 @@ describe('Player', function() {
           width: null,
           height: null,
           frameRate: undefined,
-          codecs: null
+          codecs: 'avc1.4d401f'
         }
       ];
     });
@@ -1349,27 +1377,6 @@ describe('Player', function() {
     function onKeyStatus(keyStatusMap) {
       player.onKeyStatus_(keyStatusMap);
     }
-  });
-
-  describe('getPlayheadTimeAsDate()', function() {
-    beforeEach(function(done) {
-      var timeline = new shaka.media.PresentationTimeline(300, 0);
-      timeline.setStatic(false);
-      manifest = new shaka.test.ManifestGenerator()
-          .setTimeline(timeline)
-          .addPeriod(0)
-            .addStreamSet('video').addStream(1)
-          .build();
-      goog.asserts.assert(manifest, 'manifest must be non-null');
-      var parser = new shaka.test.FakeManifestParser(manifest);
-      var factory = function() { return parser; };
-      player.load('', 0, factory).catch(fail).then(done);
-    });
-
-    it('gets current wall clock time in UTC', function() {
-      var liveTimeUtc = player.getPlayheadTimeAsDate();
-      expect(liveTimeUtc).toEqual(new Date(320000));
-    });
   });
 
   it('rejects empty manifests', function(done) {

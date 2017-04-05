@@ -27,6 +27,10 @@ describe('HttpPlugin', function() {
       'status': 200,
       'responseHeaders': { 'FOO': 'BAR' }
     });
+    jasmine.Ajax.stubRequest('https://foo.bar/202').andReturn({
+      'response': new ArrayBuffer(0),
+      'status': 202
+    });
     jasmine.Ajax.stubRequest('https://foo.bar/204').andReturn({
       'response': new ArrayBuffer(10),
       'status': 204,
@@ -41,6 +45,11 @@ describe('HttpPlugin', function() {
     jasmine.Ajax.stubRequest('https://foo.bar/404').andReturn({
       'response': new ArrayBuffer(0),
       'status': 404
+    });
+    jasmine.Ajax.stubRequest('https://foo.bar/cache').andReturn({
+      'response': new ArrayBuffer(0),
+      'status': 200,
+      'responseHeaders': { 'X-Shaka-From-Cache': 'true' }
     });
     jasmine.Ajax.stubRequest('https://foo.bar/timeout').andTimeout();
     jasmine.Ajax.stubRequest('https://foo.bar/error').andError();
@@ -73,14 +82,15 @@ describe('HttpPlugin', function() {
         .then(done);
   });
 
+  it('fails with 202 status', function(done) {
+    testFails('https://foo.bar/202', done);
+  });
+
   it('succeeds with 204 status', function(done) {
     testSucceeds('https://foo.bar/204', done);
   });
 
-  // Disabled until responseURL patch is accepted in jasmine-ajax.
-  // Until then, we can't mock responseURL.
-  // See jasmine/jasmine-ajax#145
-  xit('gets redirect URLs with 302 status', function(done) {
+  it('gets redirect URLs with 302 status', function(done) {
     testSucceeds('https://foo.bar/302', done,
                  'https://foo.bar/after/302');
   });
@@ -95,6 +105,18 @@ describe('HttpPlugin', function() {
 
   it('fails on error', function(done) {
     testFails('https://foo.bar/error', done);
+  });
+
+  it('detects cache headers', function(done) {
+    var request = shaka.net.NetworkingEngine.makeRequest(
+        ['https://foo.bar/cache'], retryParameters);
+    shaka.net.HttpPlugin(request.uris[0], request)
+        .catch(fail)
+        .then(function(response) {
+          expect(response).toBeTruthy();
+          expect(response.fromCache).toBe(true);
+        })
+        .then(done);
   });
 
   /**
@@ -113,6 +135,7 @@ describe('HttpPlugin', function() {
           expect(response.uri).toBe(opt_overrideUri || uri);
           expect(response.data).toBeTruthy();
           expect(response.data.byteLength).toBe(10);
+          expect(response.fromCache).toBe(false);
           expect(response.headers).toBeTruthy();
           // Returned header names are in lowercase.
           expect(response.headers['foo']).toBe('BAR');

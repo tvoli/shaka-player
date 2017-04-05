@@ -16,18 +16,18 @@
  */
 
 describe('TtmlTextParser', function() {
-  var originalCueConstructor;
+  var originalVTTCue;
 
   beforeAll(function() {
-    originalCueConstructor = shaka.media.TextEngine.CueConstructor;
+    originalVTTCue = window.VTTCue;
   });
 
   afterAll(function() {
-    shaka.media.TextEngine.CueConstructor = originalCueConstructor;
+    window.VTTCue = originalVTTCue;
   });
 
   beforeEach(function() {
-    shaka.media.TextEngine.CueConstructor = function(start, end, text) {
+    window.VTTCue = function(start, end, text) {
       this.startTime = start;
       this.endTime = end;
       this.text = text;
@@ -36,6 +36,41 @@ describe('TtmlTextParser', function() {
 
   it('supports no cues', function() {
     verifyHelper([], '<tt></tt>');
+  });
+
+  it('supports div with no cues but whitespace', function() {
+    verifyHelper([], '<tt><body><div>  \r\n </div></body></tt>');
+  });
+
+  it('supports xml:space', function() {
+    var ttBody = '\n' +
+        '  <body>\n' +
+        '    <p begin="01:02.03" end="01:02.05">\n' +
+        '      <span> A    B   C  </span>\n' +
+        '    </p>\n' +
+        '  </body>\n';
+
+    // When xml:space="default", ignore whitespace outside tags.
+    verifyHelper(
+        [
+          {start: 62.03, end: 62.05, text: 'A B C'}
+        ],
+        '<tt xml:space="default">' + ttBody + '</tt>');
+    // When xml:space="preserve", take them into account.
+    verifyHelper(
+        [
+          {start: 62.03, end: 62.05, text: '\n       A    B   C  \n    '}
+        ],
+        '<tt xml:space="preserve">' + ttBody + '</tt>');
+    // The default value for xml:space is "default".
+    verifyHelper(
+        [
+          {start: 62.03, end: 62.05, text: 'A B C'}
+        ],
+        '<tt>' + ttBody + '</tt>');
+    // Any other value is rejected as an error.
+    errorHelper(shaka.util.Error.Code.INVALID_XML,
+                '<tt xml:space="invalid">' + ttBody + '</tt>');
   });
 
   it('rejects invalid ttml', function() {
@@ -423,7 +458,7 @@ describe('TtmlTextParser', function() {
 
   it('uses a workaround for browsers not supporting align=center', function() {
 
-    shaka.media.TextEngine.CueConstructor = function(start, end, text) {
+    window.VTTCue = function(start, end, text) {
       var align = 'middle';
       Object.defineProperty(this, 'align', {
         get: function() { return align; },

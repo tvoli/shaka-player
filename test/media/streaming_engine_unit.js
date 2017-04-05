@@ -411,15 +411,11 @@ describe('StreamingEngine', function() {
       setupFakeGetTime(0);
     });
 
-    expect(mediaSourceEngine.reinitText).not.toHaveBeenCalled();
-
     onChooseStreams.and.callFake(function(period) {
       expect(period).toBe(manifest.periods[0]);
 
       onCanSwitch.and.callFake(function() {
         expect(alternateVideoStream1.createSegmentIndex).toHaveBeenCalled();
-        expect(mediaSourceEngine.reinitText).not.toHaveBeenCalled();
-        mediaSourceEngine.reinitText.calls.reset();
         onCanSwitch.and.throwError(new Error());
       });
 
@@ -445,8 +441,6 @@ describe('StreamingEngine', function() {
           expect(audioStream2.createSegmentIndex).toHaveBeenCalled();
           expect(videoStream2.createSegmentIndex).toHaveBeenCalled();
           expect(textStream2.createSegmentIndex).toHaveBeenCalled();
-          expect(mediaSourceEngine.reinitText).toHaveBeenCalled();
-          mediaSourceEngine.reinitText.calls.reset();
           onCanSwitch.and.throwError(new Error());
         });
 
@@ -659,6 +653,60 @@ describe('StreamingEngine', function() {
     expect(onStartupComplete).toHaveBeenCalled();
   });
 
+  it('plays when 1st Period doesn\'t have text streams', function() {
+    setupVod();
+    manifest.periods[0].textStreams = [];
+
+    mediaSourceEngine = new shaka.test.FakeMediaSourceEngine(segmentData);
+    createStreamingEngine();
+
+    playhead.getTime.and.returnValue(0);
+    onStartupComplete.and.callFake(setupFakeGetTime.bind(null, 0));
+    onChooseStreams.and.callFake(function(period) {
+      var chosen = defaultOnChooseStreams(period);
+      if (period == manifest.periods[0])
+        delete chosen['text'];
+      return chosen;
+    });
+
+    // Here we go!
+    streamingEngine.init();
+    runTest();
+
+    expect(mediaSourceEngine.segments).toEqual({
+      audio: [true, true, true, true],
+      video: [true, true, true, true],
+      text: [false, false, true, true]
+    });
+  });
+
+  it('plays when 2nd Period doesn\'t have text streams', function() {
+    setupVod();
+    manifest.periods[1].textStreams = [];
+
+    mediaSourceEngine = new shaka.test.FakeMediaSourceEngine(segmentData);
+    createStreamingEngine();
+
+    playhead.getTime.and.returnValue(0);
+    onStartupComplete.and.callFake(setupFakeGetTime.bind(null, 0));
+    onChooseStreams.and.callFake(function(period) {
+      var chosen = defaultOnChooseStreams(period);
+      if (period == manifest.periods[1])
+        delete chosen['text'];
+      return chosen;
+    });
+
+    // Here we go!
+    streamingEngine.init();
+    runTest();
+
+    expect(mediaSourceEngine.segments).toEqual({
+      audio: [true, true, true, true],
+      video: [true, true, true, true],
+      text: [true, true, false, false]
+    });
+  });
+
   describe('handles seeks (VOD)', function() {
     var onTick;
     var stub = function() {};
@@ -685,9 +733,10 @@ describe('StreamingEngine', function() {
 
           // Seek backwards to a buffered region in the first Period. Note that
           // since the buffering goal is 5 seconds and each segment is 10
-          // seconds long, the first segment of the second Period should be
-          // required when the playhead is at the 16 second mark.
-          expect(playhead.getTime()).toBe(16);
+          // seconds long, the second segment of this Period will be required at
+          // 6 seconds.  Then it will load the next Period, but not require the
+          // new segments.
+          expect(playhead.getTime()).toBe(6);
           playheadTime -= 5;
           streamingEngine.seeked();
 
@@ -757,9 +806,9 @@ describe('StreamingEngine', function() {
         mediaSourceEngine.endOfStream.and.callFake(function() {
           // Seek backwards to a buffered region in the first Period. Note
           // that since the buffering goal is 5 seconds and each segment is
-          // 10 seconds long, endOfStream() should be called at the 36 second
-          // mark.
-          expect(playhead.getTime()).toBe(36);
+          // 10 seconds long, the last segment should be required at 26 seconds.
+          // Then endOfStream() should be called.
+          expect(playhead.getTime()).toBe(26);
           playheadTime -= 20;
           streamingEngine.seeked();
         });
@@ -882,8 +931,9 @@ describe('StreamingEngine', function() {
 
         // Seek backwards to an unbuffered region in the first Period. Note
         // that since the buffering goal is 5 seconds and each segment is 10
-        // seconds long, endOfStream() should be called at the 36 second mark.
-        expect(playhead.getTime()).toBe(36);
+        // seconds long, the last segment should be required at 26 seconds.
+        // Then endOfStream() should be called.
+        expect(playhead.getTime()).toBe(26);
         playheadTime -= 20;
         streamingEngine.seeked();
 
@@ -1028,7 +1078,7 @@ describe('StreamingEngine', function() {
       mediaSourceEngine.endOfStream.and.callFake(function() {
         // Seek backwards to an unbuffered region in the second Period. Do not
         // call seeked().
-        expect(playhead.getTime()).toBe(36);
+        expect(playhead.getTime()).toBe(26);
         playheadTime -= 10;
       });
 
@@ -1083,6 +1133,71 @@ describe('StreamingEngine', function() {
       streamingEngine.init();
 
       runTest();
+      // Verify buffers.
+      expect(mediaSourceEngine.initSegments).toEqual({
+        audio: [false, true],
+        video: [false, true],
+        text: []
+      });
+      expect(mediaSourceEngine.segments).toEqual({
+        audio: [true, true, true, true],
+        video: [true, true, true, true],
+        text: [true, true, true, true]
+      });
+    });
+
+    it('into partially buffered regions', function() {
+      // Seeking into a region where some buffers (text) are buffered and some
+      // are not should work despite the media states requiring different
+      // periods.
+      playhead.getTime.and.returnValue(0);
+
+      onChooseStreams.and.callFake(function(period) {
+        expect(period).toBe(manifest.periods[0]);
+
+        onChooseStreams.and.callFake(function(period) {
+          expect(period).toBe(manifest.periods[1]);
+
+          // Should get another call for the unbuffered Period transition.
+          onChooseStreams.and.callFake(defaultOnChooseStreams);
+
+          mediaSourceEngine.endOfStream.and.callFake(function() {
+            // Should have the first Period entirely buffered.
+            expect(mediaSourceEngine.initSegments).toEqual({
+              audio: [false, true],
+              video: [false, true],
+              text: []
+            });
+            expect(mediaSourceEngine.segments).toEqual({
+              audio: [true, true, true, true],
+              video: [true, true, true, true],
+              text: [true, true, true, true]
+            });
+
+            // Fake the audio/video buffers being removed.
+            mediaSourceEngine.segments.audio = [false, false, true, true];
+            mediaSourceEngine.segments.video = [false, false, true, true];
+
+            // Seek back into the first Period.
+            expect(playhead.getTime()).toBe(26);
+            playheadTime -= 20;
+            streamingEngine.seeked();
+
+            mediaSourceEngine.endOfStream.and.stub();
+          });
+
+          return defaultOnChooseStreams(period);
+        });
+
+        return defaultOnChooseStreams(period);
+      });
+
+      onStartupComplete.and.callFake(setupFakeGetTime.bind(null, 0));
+
+      // Here we go!
+      streamingEngine.init();
+      runTest();
+
       // Verify buffers.
       expect(mediaSourceEngine.initSegments).toEqual({
         audio: [false, true],
@@ -1914,4 +2029,3 @@ describe('StreamingEngine', function() {
     };
   }
 });
-
