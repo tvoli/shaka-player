@@ -8,6 +8,10 @@
     {
       "name": "Joey Parrish",
       "email": "joeyparrish@google.com"
+    },
+    {
+      "name": "Anna Rybkina",
+      "email": "anna.rybkina@magine.com"
     }
   ],
   "devDependencies": {
