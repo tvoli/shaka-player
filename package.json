@@ -1,5 +1,5 @@
 {
-  "name": "shaka-player",
+  "name": "@maginetv/shaka-player",
   "description": "DASH/EME video player library",
   "version": "2.1.1",
   "homepage": "https://github.com/google/shaka-player",
@@ -49,6 +49,6 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "prepublish": "python ./build/all.py"
+    "prepublish": "python ./build/all.py && python ./build/build.py"
   }
 }
