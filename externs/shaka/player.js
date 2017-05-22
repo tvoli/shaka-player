@@ -138,6 +138,8 @@ shakaExtern.Stats;
  *   codecs: ?string,
  *   sar: ?number,
  *   par: ?number,
+ *   audioCodec: ?string,
+ *   videoCodec: ?string,
  *   primary: boolean
  * }}
  *
@@ -178,6 +180,10 @@ shakaExtern.Stats;
  *   The video aspect ratio provided in the manifest, if present.
  * @property {?number} par
  *   The video aspect ratio provided in the manifest, if present.
+ * @property {?string} audioCodec
+ *   The audio codecs string provided in the manifest, if present.
+  * @property {?string} videoCodec
+ *   The video codecs string provided in the manifest, if present.
  * @property {boolean} primary
  *   True indicates that this in the primary language for the content.
  *   This flag is based on signals from the manifest.

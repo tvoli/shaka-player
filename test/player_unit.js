@@ -642,6 +642,29 @@ describe('Player', function() {
       expect(newConfig.manifest.dash.customScheme).not.toBe(badCustomScheme2);
       expect(logWarnSpy).not.toHaveBeenCalled();
     });
+
+    // Regression test for https://github.com/google/shaka-player/issues/784
+    it('does not throw when overwriting serverCertificate', function() {
+      player.configure({
+        drm: {
+          advanced: {
+            'com.widevine.alpha': {
+              serverCertificate: new Uint8Array(1)
+            }
+          }
+        }
+      });
+
+      player.configure({
+        drm: {
+          advanced: {
+            'com.widevine.alpha': {
+              serverCertificate: new Uint8Array(2)
+            }
+          }
+        }
+      });
+    });
   });
 
   describe('AbrManager', function() {
@@ -767,6 +790,8 @@ describe('Player', function() {
           frameRate: 1000000 / 42000,
           mimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
           primary: false
         },
         {
@@ -781,6 +806,8 @@ describe('Player', function() {
           frameRate: 24,
           mimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
           primary: false
         },
         {
@@ -795,6 +822,8 @@ describe('Player', function() {
           frameRate: 1000000 / 42000,
           mimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
           primary: false
         },
         {
@@ -809,6 +838,8 @@ describe('Player', function() {
           frameRate: 24,
           mimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
           primary: false
         },
         {
@@ -823,6 +854,8 @@ describe('Player', function() {
           frameRate: 24,
           mimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
           primary: false
         }
       ];
@@ -836,6 +869,8 @@ describe('Player', function() {
           kind: 'caption',
           mimeType: 'text/vtt',
           codecs: null,
+          audioCodec: null,
+          videoCodec: null,
           primary: false
         },
         {
@@ -846,6 +881,8 @@ describe('Player', function() {
           kind: 'caption',
           mimeType: 'application/ttml+xml',
           codecs: null,
+          audioCodec: null,
+          videoCodec: null,
           primary: false
         }
       ];
@@ -1720,6 +1757,32 @@ describe('Player', function() {
         expect(tracks.length).toBe(1);
         expect(tracks[0].id).toBe(1);
       }).then(done);
+    });
+
+    it('removes if we don\'t have the required key', function(done) {
+      manifest = new shaka.test.ManifestGenerator()
+              .addPeriod(0)
+                .addVariant(0)
+                  .addVideo(1).keyId('abc')
+                .addVariant(2)
+                  .addVideo(3)
+              .build();
+
+      parser = new shaka.test.FakeManifestParser(manifest);
+      factory = function() { return parser; };
+      player.load('', 0, factory).then(function() {
+        // "initialize" the current period.
+        chooseStreams();
+        canSwitch();
+      }).then(function() {
+        expect(player.getVariantTracks().length).toBe(2);
+
+        onKeyStatus({});
+
+        var tracks = player.getVariantTracks();
+        expect(tracks.length).toBe(1);
+        expect(tracks[0].id).toBe(2);
+      }).catch(fail).then(done);
     });
 
     it('removes if key system does not support codec', function(done) {
