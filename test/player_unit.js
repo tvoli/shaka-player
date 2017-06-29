@@ -19,6 +19,7 @@ describe('Player', function() {
   var abrManager;
   var originalLogError;
   var originalLogWarn;
+  var originalIsTypeSupported;
   var logErrorSpy;
   var logWarnSpy;
   var manifest;
@@ -38,6 +39,15 @@ describe('Player', function() {
   beforeAll(function() {
     originalLogError = shaka.log.error;
     originalLogWarn = shaka.log.warning;
+
+    originalIsTypeSupported = window.MediaSource.isTypeSupported;
+    // Since this is not an integration test, we don't want MediaSourceEngine to
+    // fail assertions based on browser support for types.  Pretend that all
+    // video and audio types are supported.
+    window.MediaSource.isTypeSupported = function(mimeType) {
+      var type = mimeType.split('/')[0];
+      return type == 'video' || type == 'audio';
+    };
 
     logErrorSpy = jasmine.createSpy('shaka.log.error');
     shaka.log.error = logErrorSpy;
@@ -67,6 +77,7 @@ describe('Player', function() {
       drmEngine = new shaka.test.FakeDrmEngine();
       playhead = new shaka.test.FakePlayhead();
       playheadObserver = new shaka.test.FakePlayheadObserver();
+      streamingEngine = new shaka.test.FakeStreamingEngine();
       mediaSourceEngine = {
         destroy: jasmine.createSpy('destroy').and.returnValue(Promise.resolve())
       };
@@ -81,7 +92,7 @@ describe('Player', function() {
         // This captures the variable |manifest| so this should only be used
         // after the manifest has been set.
         var period = manifest.periods[0];
-        streamingEngine = new shaka.test.FakeStreamingEngine(period);
+        streamingEngine.getCurrentPeriod.and.returnValue(period);
         return streamingEngine;
       };
     }
@@ -114,6 +125,7 @@ describe('Player', function() {
   afterAll(function() {
     shaka.log.error = originalLogError;
     shaka.log.warning = originalLogWarn;
+    window.MediaSource.isTypeSupported = originalIsTypeSupported;
   });
 
   describe('destroy', function() {
@@ -404,12 +416,7 @@ describe('Player', function() {
       it('StreamingEngine init', function(done) {
         // Block StreamingEngine init.
         var p = new shaka.util.PublicPromise();
-        player.createStreamingEngine = function() {
-          var period = manifest.periods[0];
-          streamingEngine = new shaka.test.FakeStreamingEngine(period);
-          streamingEngine.init.and.returnValue(p);
-          return streamingEngine;
-        };
+        streamingEngine.init.and.returnValue(p);
 
         player.load('', 0, factory1).then(fail).catch(checkError).then(done);
 
@@ -768,10 +775,12 @@ describe('Player', function() {
             .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
           .addTextStream(6)
             .language('es')
+            .label('Spanish')
             .bandwidth(100).kind('caption')
                          .mime('text/vtt')
           .addTextStream(7)
             .language('en')
+            .label('English')
             .bandwidth(100).kind('caption')
                          .mime('application/ttml+xml')
           // Both text tracks should remain, even with different MIME types.
@@ -784,6 +793,7 @@ describe('Player', function() {
           type: 'variant',
           bandwidth: 200,
           language: 'en',
+          label: null,
           kind: null,
           width: 100,
           height: 200,
@@ -792,7 +802,10 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false
+          primary: false,
+          roles: [],
+          videoId: 4,
+          audioId: 1
         },
         {
           id: 2,
@@ -800,6 +813,7 @@ describe('Player', function() {
           type: 'variant',
           bandwidth: 300,
           language: 'en',
+          label: null,
           kind: null,
           width: 200,
           height: 400,
@@ -808,7 +822,10 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false
+          primary: false,
+          roles: [],
+          videoId: 5,
+          audioId: 1
         },
         {
           id: 3,
@@ -816,6 +833,7 @@ describe('Player', function() {
           type: 'variant',
           bandwidth: 200,
           language: 'en',
+          label: null,
           kind: null,
           width: 100,
           height: 200,
@@ -824,7 +842,10 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false
+          primary: false,
+          roles: [],
+          videoId: 4,
+          audioId: 2
         },
         {
           id: 4,
@@ -832,6 +853,7 @@ describe('Player', function() {
           type: 'variant',
           bandwidth: 300,
           language: 'en',
+          label: null,
           kind: null,
           width: 200,
           height: 400,
@@ -840,7 +862,10 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false
+          primary: false,
+          roles: [],
+          videoId: 5,
+          audioId: 2
         },
         {
           id: 5,
@@ -848,6 +873,7 @@ describe('Player', function() {
           type: 'variant',
           bandwidth: 300,
           language: 'es',
+          label: null,
           kind: null,
           width: 200,
           height: 400,
@@ -856,7 +882,10 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false
+          primary: false,
+          roles: [],
+          videoId: 5,
+          audioId: 8
         }
       ];
 
@@ -866,24 +895,28 @@ describe('Player', function() {
           active: true,
           type: ContentType.TEXT,
           language: 'es',
+          label: 'Spanish',
           kind: 'caption',
           mimeType: 'text/vtt',
           codecs: null,
           audioCodec: null,
           videoCodec: null,
-          primary: false
+          primary: false,
+          roles: []
         },
         {
           id: 7,
           active: false,
           type: ContentType.TEXT,
           language: 'en',
+          label: 'English',
           kind: 'caption',
           mimeType: 'application/ttml+xml',
           codecs: null,
           audioCodec: null,
           videoCodec: null,
-          primary: false
+          primary: false,
+          roles: []
         }
       ];
     });
@@ -1786,14 +1819,19 @@ describe('Player', function() {
     });
 
     it('removes if key system does not support codec', function(done) {
-      // Should already be removed from filterPeriod_
       manifest = new shaka.test.ManifestGenerator()
-              .addPeriod(0)
-                .addVariant(0)
-                  .addVideo(1).mime('video/unsupported')
-                .addVariant(1)
-                  .addVideo(2)
-              .build();
+          .addPeriod(0)
+            .addVariant(0).addDrmInfo('foo.bar')
+              .addVideo(1).encrypted(true).mime('video/unsupported')
+            .addVariant(1).addDrmInfo('foo.bar')
+              .addVideo(2).encrypted(true)
+          .build();
+
+      // We must be careful that our video/unsupported was not filtered out
+      // because of MSE support.  We are specifically testing EME-based
+      // filtering of codecs.
+      expect(MediaSource.isTypeSupported('video/unsupported')).toBe(true);
+      // FakeDrmEngine's getSupportedTypes() returns video/mp4 by default.
 
       parser = new shaka.test.FakeManifestParser(manifest);
       factory = function() { return parser; };
@@ -1983,6 +2021,43 @@ describe('Player', function() {
 
         player.configure({restrictions: {minHeight: 1000, maxHeight: 2000}});
         expect(onError).toHaveBeenCalled();
+      }).then(done);
+    });
+
+    it('chooses efficient codecs and removes the rest', function(done) {
+      manifest = new shaka.test.ManifestGenerator()
+              .addPeriod(0)
+              // More efficient codecs
+                .addVariant(0).bandwidth(100)
+                  .addVideo(0).mime('video/mp4', 'good')
+                .addVariant(1).bandwidth(200)
+                  .addVideo(1).mime('video/mp4', 'good')
+                .addVariant(2).bandwidth(300)
+                  .addVideo(2).mime('video/mp4', 'good')
+              // Less efficient codecs
+                .addVariant(3).bandwidth(10000)
+                  .addVideo(3).mime('video/mp4', 'bad')
+                .addVariant(4).bandwidth(20000)
+                  .addVideo(4).mime('video/mp4', 'bad')
+                .addVariant(5).bandwidth(30000)
+                  .addVideo(5).mime('video/mp4', 'bad')
+              .build();
+
+      parser = new shaka.test.FakeManifestParser(manifest);
+      factory = function() { return parser; };
+      player.load('', 0, factory).then(function() {
+        // "initialize" the current period.
+        chooseStreams();
+        canSwitch();
+      }).catch(fail).then(function() {
+        expect(abrManager.setVariants).toHaveBeenCalled();
+        var variants = abrManager.setVariants.calls.argsFor(0)[0];
+        // We've already chosen codecs, so only 3 tracks should remain.
+        expect(variants.length).toBe(3);
+        // They should be the low-bandwidth ones.
+        expect(variants[0].video.codecs).toEqual('good');
+        expect(variants[1].video.codecs).toEqual('good');
+        expect(variants[2].video.codecs).toEqual('good');
       }).then(done);
     });
 
