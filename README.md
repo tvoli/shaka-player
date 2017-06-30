@@ -12,9 +12,9 @@ build and deploy is in the sources.
 
 Shaka Player supports any browser that supports the necessary web standards.
 It is actively tested with:
-  - Chrome
+  - Chrome on Linux, Mac, Windows, Android, and ChromeOS
   - Chromecast
-  - Firefox
+  - Firefox on Linux, Mac, and Windows
   - Microsoft Edge
   - IE 11
   - Safari
@@ -146,3 +146,9 @@ You can skip slow-running integration tests with `--quick`.
 If you have improvements or fixes, we would love to have your contributions.
 Please read CONTRIBUTING.md for more information on the process we would like
 contributors to follow.
+
+
+## FAQ ##
+
+For general help and before filing any bugs, please read the
+[FAQ](docs/tutorials/faq.md).

@@ -1,3 +1,96 @@
+## 2.1.4 (2017-06-16)
+
+New features:
+  - Allow role to be specified in selectAudioLanguage and selectTextLanguage
+    - https://github.com/google/shaka-player/issues/767
+
+Bugfixes:
+  - Fix changing languages close to a period boundary
+    - https://github.com/google/shaka-player/issues/797
+  - Fix hang in load() when there are pending failures
+    - https://github.com/google/shaka-player/issues/782
+  - Fix DASH parser ignoring certain text streams
+    - https://github.com/google/shaka-player/issues/875
+  - Fix exceptions when side-loading text tracks
+    - https://github.com/google/shaka-player/issues/821
+  - Fix PlayReady support on Chromecast
+    - https://github.com/google/shaka-player/issues/852
+  - Fix version number issues during publication on NPM
+    - https://github.com/google/shaka-player/issues/869
+  - Fix pollution from npm on Windows
+    - https://github.com/google/shaka-player/issues/776
+  - Fix support for npm v5
+    - https://github.com/google/shaka-player/issues/854
+
+Demo app:
+  - Fix control visibility in fullscreen mode on mobile phones
+    - https://github.com/google/shaka-player/issues/663
+
+Docs:
+  - Updated welcome docs
+  - Updated list of supported platforms
+    - https://github.com/google/shaka-player/issues/863
+  - Updated FAQ
+    - https://github.com/google/shaka-player/issues/864
+    - https://github.com/google/shaka-player/issues/865
+
+
+## 2.1.3 (2017-06-06)
+
+New features:
+  - Limit network retries for VOD, only retry forever on live
+    - https://github.com/google/shaka-player/issues/762
+    - https://github.com/google/shaka-player/issues/830
+    - https://github.com/google/shaka-player/pull/842
+  - Add stream IDs in getStats().switchHistory
+    - https://github.com/google/shaka-player/issues/785
+    - https://github.com/google/shaka-player/issues/823
+    - https://github.com/google/shaka-player/pull/846
+  - Add label attribute to tracks
+    - https://github.com/google/shaka-player/issues/825
+    - https://github.com/google/shaka-player/pull/811
+    - https://github.com/google/shaka-player/pull/831
+  - Expose role attributes on tracks
+    - https://github.com/google/shaka-player/issues/767
+  - Silence confusing browser-generated errors related to play()
+    - https://github.com/google/shaka-player/issues/836
+
+Bugfixes:
+  - Fix offline storage in compiled mode
+  - Choose lowest-bandwidth codecs when multiple are possible
+    - https://github.com/google/shaka-player/issues/841
+  - Fix PlayReady on IE and Edge
+    - https://github.com/google/shaka-player/issues/837
+  - Fix rounding errors on IE11
+    - https://github.com/google/shaka-player/pull/832
+  - Clean up demo app loader
+  - Fix PlayReady test failures
+
+
+## 2.1.2 (2017-05-23)
+
+New features:
+  - Make educated guesses about missing HLS info (CODECS no longer required)
+    - https://github.com/google/shaka-player/issues/805
+  - Add support for PlayReady on Chromecast and Tizen
+    - https://github.com/google/shaka-player/issues/814
+    - https://github.com/google/shaka-player/pull/815
+
+Bugfixes:
+  - Fix flakiness in RESTRICTIONS\_CANNOT\_BE\_MET errors
+  - Make isBrowserSupported more strict about MediaSource
+  - Fix detection of audio-only assets in the demo
+    - https://github.com/google/shaka-player/issues/794
+  - Fix exports and generated externs that were broken in v2.1.0 and v2.1.1
+  - Speed up deletion of offline content
+    - https://github.com/google/shaka-player/issues/756
+
+Docs:
+  - Fix docs on subtitles and captions
+    - https://github.com/google/shaka-player/issues/808
+  - Add notes on adaptation to upgrade guide
+
+
 ## 2.1.1 (2017-05-10)
 
 New features:

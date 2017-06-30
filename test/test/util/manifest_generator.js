@@ -163,6 +163,18 @@ shaka.test.ManifestGenerator.prototype.language = function(language) {
 
 
 /**
+ * Sets the label of the language of the most recent variant or text stream.
+ *
+ * @param {string} label
+ * @return {!shaka.test.ManifestGenerator}
+ */
+shaka.test.ManifestGenerator.prototype.label = function(label) {
+  this.currentStream_().label = label;
+  return this;
+};
+
+
+/**
  * Sets that the most recent variant or text stream is primary.
  *
  * @return {!shaka.test.ManifestGenerator}
@@ -456,10 +468,12 @@ shaka.test.ManifestGenerator.prototype.createStream_ =
     encrypted: false,
     keyId: null,
     language: language,
+    label: null,
     type: type,
     primary: false,
     trickModeVideo: null,
-    containsEmsgBoxes: false
+    containsEmsgBoxes: false,
+    roles: []
   };
   stream.createSegmentIndex.and.callFake(
       function() { return Promise.resolve(); });
@@ -675,6 +689,18 @@ shaka.test.ManifestGenerator.prototype.encrypted = function(encrypted) {
 shaka.test.ManifestGenerator.prototype.frameRate = function(frameRate) {
   var stream = this.currentStream_();
   stream.frameRate = frameRate;
+  return this;
+};
+
+
+/**
+ * Sets the roles of the current stream.
+ * @param {!Array.<string>} roles
+ * @return {!shaka.test.ManifestGenerator}
+ */
+shaka.test.ManifestGenerator.prototype.roles = function(roles) {
+  var stream = this.currentStream_();
+  stream.roles = roles;
   return this;
 };
 
