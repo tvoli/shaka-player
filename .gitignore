@@ -5,3 +5,4 @@ dist/
 docs/api/
 coverage/
 .idea/
+npm-debug.log
