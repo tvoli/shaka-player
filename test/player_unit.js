@@ -738,6 +738,103 @@ describe('Player', function() {
     });
   });
 
+  describe('filterTracks', function() {
+    it('retains only video+audio variants if they exist', function(done) {
+      var manifest = new shaka.test.ManifestGenerator()
+        .addPeriod(0)
+          .addVariant(1)
+            .bandwidth(200)
+            .language('fr')
+            .addAudio(2).bandwidth(100)
+          .addVariant(2)
+            .bandwidth(400)
+            .language('en')
+            .addAudio(1).bandwidth(100)
+            .addVideo(4).bandwidth(100).size(100, 200)
+            .frameRate(1000000 / 42000)
+          .addVariant(3)
+            .bandwidth(200)
+            .addVideo(5).bandwidth(100).size(300, 400)
+            .frameRate(1000000 / 42000)
+        .addPeriod(1)
+          .addVariant(1)
+            .bandwidth(200)
+            .language('fr')
+            .addAudio(2).bandwidth(100)
+          .addVariant(2)
+            .bandwidth(200)
+            .addVideo(5).bandwidth(100).size(300, 400)
+            .frameRate(1000000 / 42000)
+          .addVariant(3)
+            .bandwidth(450)
+            .language('en')
+            .addAudio(1).bandwidth(100)
+            .addVideo(4).bandwidth(100).size(100, 200)
+            .frameRate(1000000 / 42000)
+        .build();
+
+      var variantTracks1 = [
+        {
+          id: 2,
+          active: false,
+          type: 'variant',
+          bandwidth: 400,
+          language: 'en',
+          label: null,
+          kind: null,
+          width: 100,
+          height: 200,
+          frameRate: 1000000 / 42000,
+          mimeType: 'video/mp4',
+          codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
+          primary: false,
+          roles: [],
+          videoId: 4,
+          audioId: 1
+        }
+      ];
+      var variantTracks2 = [
+        {
+          id: 3,
+          active: false,
+          type: 'variant',
+          bandwidth: 450,
+          language: 'en',
+          label: null,
+          kind: null,
+          width: 100,
+          height: 200,
+          frameRate: 1000000 / 42000,
+          mimeType: 'video/mp4',
+          codecs: 'avc1.4d401f, mp4a.40.2',
+          audioCodec: 'mp4a.40.2',
+          videoCodec: 'avc1.4d401f',
+          primary: false,
+          roles: [],
+          videoId: 4,
+          audioId: 1
+        }
+      ];
+
+      var parser = new shaka.test.FakeManifestParser(manifest);
+      var parserFactory = function() { return parser; };
+      player.load('', 0, parserFactory).catch(fail).then(function() {
+        // Check the first period's variant tracks.
+        var actualVariantTracks1 = player.getVariantTracks();
+        expect(actualVariantTracks1).toEqual(variantTracks1);
+
+        // Check the second period's variant tracks.
+        playhead.getTime.and.callFake(function() {
+          return 100;
+        });
+        var actualVariantTracks2 = player.getVariantTracks();
+        expect(actualVariantTracks2).toEqual(variantTracks2);
+      }).then(done);
+    });
+  });
+
   describe('tracks', function() {
     var variantTracks;
     var textTracks;
@@ -748,42 +845,50 @@ describe('Player', function() {
         .addPeriod(0)
           .addVariant(1)
             .bandwidth(200)
-            .language('en')
-            .addAudio(1).bandwidth(100)
+            .language('en').primary()
+            .addAudio(1).bandwidth(100).roles(['main'])
             .addVideo(4).bandwidth(100).size(100, 200)
             .frameRate(1000000 / 42000)
           .addVariant(2)
             .bandwidth(300)
-            .language('en')
-            .addAudio(1).bandwidth(100)
+            .language('en').primary()
+            .addAudio(1)  // already defined
             .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
           .addVariant(3)
             .bandwidth(200)
             .language('en')
-            .addAudio(2).bandwidth(100)
-            .addVideo(4).bandwidth(100).size(100, 200)
+            .addAudio(2).bandwidth(100).roles(['commentary'])
+            .addVideo(4)  // already defined
             .frameRate(1000000 / 42000)
           .addVariant(4)
             .bandwidth(300)
             .language('en')
-            .addAudio(2).bandwidth(100)
-            .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
+            .addAudio(2)  // already defined
+            .addVideo(5)  // already defined
           .addVariant(5)
             .language('es')
             .bandwidth(300)
             .addAudio(8).bandwidth(100)
-            .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
+            .addVideo(5)  // already defined
           .addTextStream(6)
             .language('es')
             .label('Spanish')
             .bandwidth(100).kind('caption')
-                         .mime('text/vtt')
+            .mime('text/vtt')
+            .primary().roles(['main'])
           .addTextStream(7)
             .language('en')
             .label('English')
             .bandwidth(100).kind('caption')
-                         .mime('application/ttml+xml')
-          // Both text tracks should remain, even with different MIME types.
+            .mime('application/ttml+xml')
+            .primary().roles(['main'])
+          .addTextStream(9)
+            .language('en')
+            .label('English')
+            .bandwidth(100).kind('caption')
+            .mime('application/ttml+xml')
+            .roles(['commentary'])
+          // All text tracks should remain, even with different MIME types.
         .build();
 
       variantTracks = [
@@ -802,8 +907,8 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false,
-          roles: [],
+          primary: true,
+          roles: ['main'],
           videoId: 4,
           audioId: 1
         },
@@ -822,8 +927,8 @@ describe('Player', function() {
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
-          primary: false,
-          roles: [],
+          primary: true,
+          roles: ['main'],
           videoId: 5,
           audioId: 1
         },
@@ -843,7 +948,7 @@ describe('Player', function() {
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
           primary: false,
-          roles: [],
+          roles: ['commentary'],
           videoId: 4,
           audioId: 2
         },
@@ -863,7 +968,7 @@ describe('Player', function() {
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
           primary: false,
-          roles: [],
+          roles: ['commentary'],
           videoId: 5,
           audioId: 2
         },
@@ -901,8 +1006,8 @@ describe('Player', function() {
           codecs: null,
           audioCodec: null,
           videoCodec: null,
-          primary: false,
-          roles: []
+          primary: true,
+          roles: ['main']
         },
         {
           id: 7,
@@ -915,8 +1020,22 @@ describe('Player', function() {
           codecs: null,
           audioCodec: null,
           videoCodec: null,
+          primary: true,
+          roles: ['main']
+        },
+        {
+          id: 9,
+          active: false,
+          type: ContentType.TEXT,
+          language: 'en',
+          label: 'English',
+          kind: 'caption',
+          mimeType: 'application/ttml+xml',
+          codecs: null,
+          audioCodec: null,
+          videoCodec: null,
           primary: false,
-          roles: []
+          roles: ['commentary']
         }
       ];
     });
@@ -1081,7 +1200,7 @@ describe('Player', function() {
           var spanishStream = period.variants[4].audio;
           var englishStream = period.variants[3].audio;
 
-          expect(streamingEngine.switch).not.toHaveBeenCalled();
+          streamingEngine.switch.calls.reset();
           player.selectAudioLanguage('es');
 
           expect(streamingEngine.switch)
@@ -1103,7 +1222,7 @@ describe('Player', function() {
           var spanishStream = period.textStreams[0];
           var englishStream = period.textStreams[1];
 
-          expect(streamingEngine.switch).not.toHaveBeenCalled();
+          streamingEngine.switch.calls.reset();
           player.selectTextLanguage('en');
 
           expect(streamingEngine.switch)
@@ -1127,6 +1246,20 @@ describe('Player', function() {
           .toHaveBeenCalledWith(ContentType.AUDIO, spanishStream, true);
     });
 
+    it('changing audio role changes active stream', function() {
+      chooseStreams();
+      canSwitch();
+
+      var period = manifest.periods[0];
+      var commentaryStream = period.variants[2].audio;
+
+      expect(streamingEngine.switch).not.toHaveBeenCalled();
+      player.selectAudioLanguage('en', 'commentary');
+
+      expect(streamingEngine.switch)
+          .toHaveBeenCalledWith(ContentType.AUDIO, commentaryStream, true);
+    });
+
     it('changing currentTextLanguage changes active stream', function() {
       chooseStreams();
       canSwitch();
@@ -1139,6 +1272,20 @@ describe('Player', function() {
 
       expect(streamingEngine.switch)
           .toHaveBeenCalledWith(ContentType.TEXT, englishStream, true);
+    });
+
+    it('changing text role changes active stream', function() {
+      chooseStreams();
+      canSwitch();
+
+      var period = manifest.periods[0];
+      var commentaryStream = period.textStreams[2];
+
+      expect(streamingEngine.switch).not.toHaveBeenCalled();
+      player.selectTextLanguage('en', 'commentary');
+
+      expect(streamingEngine.switch)
+          .toHaveBeenCalledWith(ContentType.TEXT, commentaryStream, true);
     });
   });
 
@@ -1818,6 +1965,66 @@ describe('Player', function() {
       }).catch(fail).then(done);
     });
 
+    it('doesn\'t remove when using synthetic key status', function(done) {
+      manifest = new shaka.test.ManifestGenerator()
+              .addPeriod(0)
+                .addVariant(0)
+                  .addVideo(1).keyId('abc')
+                .addVariant(2)
+                  .addVideo(3)
+              .build();
+
+      parser = new shaka.test.FakeManifestParser(manifest);
+      factory = function() { return parser; };
+      player.load('', 0, factory).then(function() {
+        // "initialize" the current period.
+        chooseStreams();
+        canSwitch();
+      }).then(function() {
+        expect(player.getVariantTracks().length).toBe(2);
+
+        // A synthetic key status contains a single key status with key '00'.
+        onKeyStatus({'00': 'usable'});
+
+        expect(player.getVariantTracks().length).toBe(2);
+      }).catch(fail).then(done);
+    });
+
+    it('removes all encrypted tracks for errors with synthetic key status',
+        function(done) {
+          manifest = new shaka.test.ManifestGenerator()
+                  .addPeriod(0)
+                    .addVariant(0)
+                      .addVideo(1).keyId('abc')
+                    .addVariant(2)
+                      .addVideo(3).keyId('xyz')
+                    .addVariant(4)
+                      .addVideo(5)
+                  .build();
+
+          parser = new shaka.test.FakeManifestParser(manifest);
+          factory = function() { return parser; };
+          player.load('', 0, factory)
+              .then(function() {
+                // "initialize" the current period.
+                chooseStreams();
+                canSwitch();
+              })
+              .then(function() {
+                expect(player.getVariantTracks().length).toBe(3);
+
+                // A synthetic key status contains a single key status with key
+                // '00'.
+                onKeyStatus({'00': 'internal-error'});
+
+                var tracks = player.getVariantTracks();
+                expect(tracks.length).toBe(1);
+                expect(tracks[0].id).toBe(4);
+              })
+              .catch(fail)
+              .then(done);
+        });
+
     it('removes if key system does not support codec', function(done) {
       manifest = new shaka.test.ManifestGenerator()
           .addPeriod(0)
@@ -2121,6 +2328,26 @@ describe('Player', function() {
     }).then(done);
   });
 
+  describe('load', function() {
+    it('tolerates bandwidth of NaN, undefined, or 0', function(done) {
+      // Regression test for https://github.com/google/shaka-player/issues/938
+      manifest = new shaka.test.ManifestGenerator()
+              .addPeriod(0)
+                .addVariant(0).bandwidth(/** @type {?} */(undefined))
+                  .addVideo(0).mime('video/mp4', 'good')
+                .addVariant(1).bandwidth(NaN)
+                  .addVideo(1).mime('video/mp4', 'good')
+                .addVariant(2).bandwidth(0)
+                  .addVideo(2).mime('video/mp4', 'good')
+              .build();
+
+      var parser = new shaka.test.FakeManifestParser(manifest);
+      var parserFactory = function() { return parser; };
+
+      // Before the fix, load() would fail assertions and throw errors.
+      player.load('', 0, parserFactory).catch(fail).then(done);
+    });
+  });
 
   /**
    * Choose streams for the given period.
