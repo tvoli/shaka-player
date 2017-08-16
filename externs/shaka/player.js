@@ -606,3 +606,15 @@ shakaExtern.AbrConfiguration;
  * @exportDoc
  */
 shakaExtern.PlayerConfiguration;
+
+
+/**
+ * @typedef {{
+ *   version: string
+ * }}
+ *
+ * @property {string} version
+ *   This is the version
+ * @exportDoc
+ */
+shakaExtern.ReturnVersion;
