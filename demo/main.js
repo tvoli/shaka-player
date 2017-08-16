@@ -96,6 +96,11 @@ shakaDemo.init = function() {
   // Display the version number.
   document.getElementById('version').textContent = shaka.Player.version;
 
+
+  var playerVersion = shaka.Player.returnVersion();
+  console.log('Wowow..' + playerVersion);
+
+
   // Fill in the language preferences based on browser config, if available.
   var language = navigator.language || 'en-us';
   document.getElementById('preferredAudioLanguage').value = language;

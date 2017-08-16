@@ -321,9 +321,9 @@ shakaAssets.YouTubeCallback = function(node) {
 shakaAssets.testAssets = [
   // Shaka assets {{{
   {
-    name: 'Angel One (multicodec, multilingual)',
-    manifestUri: '//storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd',  // gjslint: disable=110
-
+    name: 'Angel One (multicodec, multilingual) - NOW localDASH',
+    manifestUri: 'http://localhost:3000/public/manifest/original/dash.mpd',  // gjslint: disable=110
+    // //storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd
     encoder: shakaAssets.Encoder.SHAKA_PACKAGER,
     source: shakaAssets.Source.SHAKA,
     drm: [],
@@ -337,9 +337,10 @@ shakaAssets.testAssets = [
     ]
   },
   {
-    name: 'Angel One (multicodec, multilingual, Widevine)',
+    name: 'Angel One (multicodec, multilingual, Widevine) - WITH AccesTag',
     manifestUri: '//storage.googleapis.com/shaka-demo-assets/angel-one-widevine/dash.mpd',  // gjslint: disable=110
-
+    // //storage.googleapis.com/shaka-demo-assets/angel-one-widevine/dash.mpd'
+    // http://localhost:3000/public/manifest/descriptiveAudio/dash.mpd
     encoder: shakaAssets.Encoder.SHAKA_PACKAGER,
     source: shakaAssets.Source.SHAKA,
     drm: [shakaAssets.KeySystem.WIDEVINE],
