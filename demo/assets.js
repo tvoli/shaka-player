@@ -322,8 +322,10 @@ shakaAssets.testAssets = [
   // Shaka assets {{{
   {
     name: 'Angel One (multicodec, multilingual) - NOW localDASH',
-    manifestUri: 'http://localhost:3000/public/manifest/modified/dash.mpd',  // gjslint: disable=110
+    manifestUri: 'http://localhost:3000/public/manifest/descriptiveAudio/dash2.mpd',  // gjslint: disable=110
     // //storage.googleapis.com/shaka-demo-assets/angel-one/dash.mpd
+    // http://localhost:3000/public/manifest/descriptiveAudio/dash2.mpd
+    // http://localhost:3000/public/manifest/modified/dash.mpd
     encoder: shakaAssets.Encoder.SHAKA_PACKAGER,
     source: shakaAssets.Source.SHAKA,
     drm: [],
@@ -340,7 +342,7 @@ shakaAssets.testAssets = [
     name: 'Angel One (multicodec, multilingual, Widevine) - WITH AccesTag',
     manifestUri: '//storage.googleapis.com/shaka-demo-assets/angel-one-widevine/dash.mpd\'',  // gjslint: disable=110
     // //storage.googleapis.com/shaka-demo-assets/angel-one-widevine/dash.mpd'
-    // http://localhost:3000/public/manifest/descriptiveAudio/dash.mpd
+    // http://localhost:3000/public/manifest/descriptiveAudio/dash2.mpd
     encoder: shakaAssets.Encoder.SHAKA_PACKAGER,
     source: shakaAssets.Source.SHAKA,
     drm: [shakaAssets.KeySystem.WIDEVINE],
