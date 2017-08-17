@@ -217,7 +217,8 @@ shakaExtern.Track;
  *   maxPixels: number,
  *
  *   minBandwidth: number,
- *   maxBandwidth: number
+ *   maxBandwidth: number,
+ *   excludedRole: string
  * }}
  *
  * @description
@@ -243,6 +244,10 @@ shakaExtern.Track;
  *   The minimum bandwidth of a variant track, in bit/sec.
  * @property {number} maxBandwidth
  *   The maximum bandwidth of a variant track, in bit/sec.
+ * @property {string} excludedRole
+ *   The excluded role of a variant, like for instance, commentary.
+ *   makes the ABR algorithm to not choose variants containing this
+ *   role when deciding how to combine the stream.
  * @exportDoc
  */
 shakaExtern.Restrictions;
