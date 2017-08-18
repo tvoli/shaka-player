@@ -153,11 +153,16 @@ shakaDemo.init = function() {
     shaka.Player.probeSupport().then(function(support) {
       shakaDemo.support_ = support;
 
+
+
       var localVideo =
           /** @type {!HTMLVideoElement} */(document.getElementById('video'));
       var localPlayer = new shaka.Player(localVideo);
       shakaDemo.castProxy_ = new shaka.cast.CastProxy(
           localVideo, localPlayer, shakaDemo.CC_APP_ID_);
+
+      //Set abr manager config
+      localPlayer.defaultAbrManager_.setRestrictions({excludedRole:'commentary'});
 
       shakaDemo.video_ = shakaDemo.castProxy_.getVideo();
       shakaDemo.player_ = shakaDemo.castProxy_.getPlayer();
