@@ -216,6 +216,10 @@ shakaDemo.load = function() {
       shakaDemo.localVideo_.poster = shakaDemo.audioOnlyPoster_;
     }
 
+    // Lets load the variant tracks for debuging here
+    shaka.log.info('Variant tracks..');
+    shaka.log.info(player.getVariantTracks());
+
     // Disallow casting of offline content.
     var isOffline = asset.manifestUri.indexOf('offline:') == 0;
     shakaDemo.controls_.allowCast(!isOffline);
