@@ -220,6 +220,9 @@ shakaDemo.load = function() {
     shaka.log.info('Variant tracks..');
     shaka.log.info(player.getVariantTracks());
 
+    shaka.log.info('getAudioLangauges..');
+    shaka.log.info(player.getAudioLanguages());
+
     // Disallow casting of offline content.
     var isOffline = asset.manifestUri.indexOf('offline:') == 0;
     shakaDemo.controls_.allowCast(!isOffline);
