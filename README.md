@@ -157,10 +157,30 @@ For general help and before filing any bugs, please read the
 ## Magine - FIX
 ***
 
-### Added
+### What is this?
 ***
- *  Added ```goog.require('shaka.util.MagineStreamUtils')``` to ```lib/dash/dash_parser.js```,
+
+This is fix as a Proof of Concept (POC), that we could modify the language tags with non-iso standard and thus make ```shaka-player```
+be able to distinguish between regular audio and descriptive audio. So the solution later on could be to modify and change
+how we generate the manifest files _IF_ we have descriptive audio. Like for instance if we have german audio for both regular and descriptive
+audio, this POC shows that we could _change_ the language tag to something like for instance ```de-accessibility``` and get two languages
+```[de, de-accessibility]``` and the player is then still able to separate the variants.
+
+
+In this fix I basically **spoofs** the things I described above by modifying how the player treats the manifest it gets in and then IF the
+player finds an ```Accessibility``` tag, then the player will add the ```-accessibility``` suffix to the language contained within the adaptionSet
+that has this tag. This means that if we have a manifest which just contains german audio ( or the ```de``` language tag) for all audio tracks,
+this fix separates these audio files by _changing_ the language on the accessibility audio tracks to ```de-accesibility```.
+
+So the player instead now has two languages, and even though the language ```de-accessibility``` do _NOT_ follow the ISO-standard, it works.
+
+### Added/Changed?
+***
+
+ *  I have added a separate _util_ called **MagineUtil** which can be found in ```lib/util/magine_util.js```
+ *  Added ```goog.require('shaka.util.MagineUtils')``` to ```lib/dash/dash_parser.js```, ```lib/player.js``` and ```lib/util/stream_utils.js```,
  aswell as referencing our utility from within the _dash_parser.js_-file
  *  Added a simple mocha test file within ```test/util/magine_utils.js```
+ *  Also added some stuff to the demo section of Shaka, changed Header etc, modified a bit of the first assets (to spoof modified manifests etc..)
 
 
