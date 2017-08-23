@@ -122,8 +122,10 @@ def check_tests():
 
   match = re.compile(r'.*\.js$')
   base = shakaBuildHelpers.get_source_base()
+
   def get(*args):
     return shakaBuildHelpers.get_all_files(os.path.join(base, *args), match)
+
   files = (get('lib') + get('externs') + get('test') + get('demo') +
            get('third_party', 'closure'))
   test_build = build.Build(set(files))

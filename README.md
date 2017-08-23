@@ -157,4 +157,10 @@ For general help and before filing any bugs, please read the
 ## Magine - FIX
 ***
 
+### Added
+***
+ *  Added ```goog.require('shaka.util.MagineStreamUtils')``` to ```lib/dash/dash_parser.js```,
+ aswell as referencing our utility from within the _dash_parser.js_-file
+ *  Added a simple mocha test file within ```test/util/magine_utils.js```
+
 
