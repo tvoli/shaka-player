@@ -174,6 +174,10 @@ this fix separates these audio files by _changing_ the language on the accessibi
 
 So the player instead now has two languages, and even though the language ```de-accessibility``` do _NOT_ follow the ISO-standard, it works.
 
+P.s. It seems that shaka-player uses a normalize language method to parse the value it gets from the ```language``` attribute within a element in the dash-manifest, but
+     I have also tried running the modified language (like ```de-accessibility```) through this parser and it _still_ returns ```de-accessibility```, so it
+     should work :).
+
 ### Added/Changed?
 ***
 
