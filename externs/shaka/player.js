@@ -130,6 +130,7 @@ shakaExtern.Stats;
  *   bandwidth: number,
  *
  *   language: string,
+ *   label: ?string,
  *   kind: ?string,
  *   width: ?number,
  *   height: ?number,
@@ -140,7 +141,10 @@ shakaExtern.Stats;
  *   par: ?number,
  *   audioCodec: ?string,
  *   videoCodec: ?string,
- *   primary: boolean
+ *   primary: boolean,
+ *   roles: !Array.<string>,
+ *   videoId: ?number,
+ *   audioId: ?number
  * }}
  *
  * @description
@@ -163,9 +167,11 @@ shakaExtern.Stats;
  * @property {string} language
  *   The language of the track, or 'und' if not given.  This is the exact
  *   value provided in the manifest; it may need to be normalized.
+ * @property {?string} label
+ *   The track label, unique text that should describe the track.
  * @property {?string} kind
- *   (only for text tracks) The kind of text track, either 'captions' or
- *   'subtitles'.
+ *   (only for text tracks) The kind of text track, either 'caption' or
+ *   'subtitle'.
  * @property {?number} width
  *   The video width provided in the manifest, if present.
  * @property {?number} height
@@ -190,6 +196,12 @@ shakaExtern.Stats;
  *   This can be a useful hint about which language should be the default, and
  *   indicates which track Shaka will use when the user's language preference
  *   cannot be satisfied.
+ * @property {!Array.<string>} roles
+ *   The roles of the track, e.g. 'main', 'caption', or 'commentary'.
+ * @property {?number} videoId
+ *   (only for variant tracks) The video stream id.
+ * @property {?number} audioId
+ *   (only for variant tracks) The audio stream id.
  * @exportDoc
  */
 shakaExtern.Track;
@@ -483,6 +495,7 @@ shakaExtern.ManifestConfiguration;
 /**
  * @typedef {{
  *   retryParameters: shakaExtern.RetryParameters,
+ *   infiniteRetriesForLiveStreams: boolean,
  *   rebufferingGoal: number,
  *   bufferingGoal: number,
  *   bufferBehind: number,
@@ -497,6 +510,9 @@ shakaExtern.ManifestConfiguration;
  *
  * @property {shakaExtern.RetryParameters} retryParameters
  *   Retry parameters for segment requests.
+ * @property {boolean} infiniteRetriesForLiveStreams
+ *   If true, will retry infinitely on network errors, for live streams only.
+ *   Defaults to true.
  * @property {number} rebufferingGoal
  *   The minimum number of seconds of content that the StreamingEngine must
  *   buffer before it can begin playback or can continue playback after it has

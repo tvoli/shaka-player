@@ -74,6 +74,14 @@ requirement: {
 }
 
 
+#Disallow classList toggle.
+requirement: {
+  type: BANNED_PROPERTY_CALL
+  value: 'DOMTokenList.prototype.toggle'
+  error_message: 'classList toggle is not supported in IE11'
+}
+
+
 # Disallow ES6 methods.
 requirement: {
   type: BANNED_PROPERTY
@@ -84,6 +92,7 @@ requirement: {
   value: 'Array.prototype.findIndex'
   value: 'Array.prototype.copyWithin'
   value: 'Array.prototype.fill'
+  value: 'Array.prototype.includes'
   error_message: 'ES6 Array methods are not allowed '
                  'because they are not supported in IE11'
 }

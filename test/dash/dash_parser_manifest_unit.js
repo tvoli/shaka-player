@@ -119,7 +119,7 @@ describe('DashParser Manifest', function() {
           '      <Representation bandwidth="50" width="576" height="432" />',
           '    </AdaptationSet>',
           '    <AdaptationSet mimeType="text/vtt"',
-          '        lang="es">',
+          '        lang="es" label="spanish">',
           '      <Role value="caption" />',
           '      <Role value="main" />',
           '      <Representation bandwidth="100" />',
@@ -155,6 +155,7 @@ describe('DashParser Manifest', function() {
                 .presentationTimeOffset(0)
                 .mime('audio/mp4', 'mp4a.40.29')
                 .primary()
+                .roles(['main'])
             .addVariant(jasmine.any(Number))
               .language('en')
               .bandwidth(150)
@@ -174,8 +175,10 @@ describe('DashParser Manifest', function() {
                 .presentationTimeOffset(0)
                 .mime('audio/mp4', 'mp4a.40.29')
                 .primary()
+                .roles(['main'])
             .addTextStream(jasmine.any(Number))
               .language('es')
+              .label('spanish')
               .primary()
               .anySegmentFunctions()
               .anyInitSegment()
@@ -183,6 +186,7 @@ describe('DashParser Manifest', function() {
               .mime('text/vtt')
               .bandwidth(100)
               .kind('caption')
+              .roles(['caption', 'main'])
         .build());
   });
 
@@ -842,6 +846,42 @@ describe('DashParser Manifest', function() {
         .then(done);
   });
 
+  it('handles text with mime and codecs on different levels', function(done) {
+    // Regression test for #875
+    var manifestText = [
+      '<MPD minBufferTime="PT75S">',
+      '  <Period id="1" duration="PT30S">',
+      '    <AdaptationSet mimeType="video/mp4">',
+      '      <Representation bandwidth="1">',
+      '        <SegmentBase indexRange="100-200" />',
+      '      </Representation>',
+      '    </AdaptationSet>',
+      '    <AdaptationSet id="1" mimeType="application/mp4">',
+      '      <Representation codecs="stpp">',
+      '        <SegmentTemplate media="1.mp4" duration="1" />',
+      '      </Representation>',
+      '    </AdaptationSet>',
+      '  </Period>',
+      '</MPD>'
+    ].join('\n');
+
+    fakeNetEngine.setResponseMapAsText({'dummy://foo': manifestText});
+    parser.start('dummy://foo', playerInterface)
+        .then(function(manifest) {
+          expect(manifest.periods.length).toBe(1);
+
+          // In #875, this was an empty list.
+          expect(manifest.periods[0].textStreams.length).toBe(1);
+          if (manifest.periods[0].textStreams.length) {
+            var ContentType = shaka.util.ManifestParserUtils.ContentType;
+            expect(manifest.periods[0].textStreams[0].type)
+              .toBe(ContentType.TEXT);
+          }
+        })
+        .catch(fail)
+        .then(done);
+  });
+
   it('ignores duplicate Representation IDs for VOD', function(done) {
     var source = [
       '<MPD minBufferTime="PT75S">',
@@ -887,6 +927,46 @@ describe('DashParser Manifest', function() {
               .toEqual(['dummy://foo/1.mp4']);
           expect(variant2.video.getSegmentReference(1).getUris())
               .toEqual(['dummy://foo/2.mp4']);
+        })
+        .catch(fail)
+        .then(done);
+  });
+
+  it('handles bandwidth of 0 or missing', function(done) {
+    // Regression test for https://github.com/google/shaka-player/issues/938
+    var source = [
+      '<MPD minBufferTime="PT75S">',
+      '  <Period id="1" duration="PT30S">',
+      '    <AdaptationSet mimeType="video/mp4">',
+      '      <Representation id="1" bandwidth="1">',
+      '        <SegmentTemplate media="1-$Number$.mp4" duration="1" />',
+      '      </Representation>',
+      '    </AdaptationSet>',
+      '    <AdaptationSet mimeType="audio/mp4">',
+      '      <Representation id="2" bandwidth="0">',
+      '        <SegmentTemplate media="2-$Number$.mp4" duration="1" />',
+      '      </Representation>',
+      '      <Representation id="3">',
+      '        <SegmentTemplate media="3-$Number$.mp4" duration="1" />',
+      '      </Representation>',
+      '    </AdaptationSet>',
+      '  </Period>',
+      '</MPD>'
+    ].join('\n');
+
+    fakeNetEngine.setResponseMapAsText({'dummy://foo': source});
+    parser.start('dummy://foo', playerInterface)
+        .then(function(manifest) {
+          expect(manifest.periods.length).toBe(1);
+          expect(manifest.periods[0].variants.length).toBe(2);
+
+          var variant1 = manifest.periods[0].variants[0];
+          expect(isNaN(variant1.bandwidth)).toBe(false);
+          expect(variant1.bandwidth).toBeGreaterThan(0);
+
+          var variant2 = manifest.periods[0].variants[1];
+          expect(isNaN(variant2.bandwidth)).toBe(false);
+          expect(variant2.bandwidth).toBeGreaterThan(0);
         })
         .catch(fail)
         .then(done);

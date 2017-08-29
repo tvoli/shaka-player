@@ -92,7 +92,8 @@ describe('Storage', function() {
             mimeType: 'video/mp4',
             codecs: 'avc1.4d401f',
             primary: false,
-            segments: []
+            segments: [],
+            roles: []
           },
           {
             id: 1,
@@ -105,7 +106,8 @@ describe('Storage', function() {
             mimeType: 'audio/mp4',
             codecs: 'vorbis',
             primary: true,
-            segments: []
+            segments: [],
+            roles: []
           }
         ]
       }],
@@ -133,6 +135,7 @@ describe('Storage', function() {
         type: 'variant',
         bandwidth: 0,
         language: 'en',
+        label: null,
         kind: null,
         width: 1920,
         height: 1080,
@@ -141,7 +144,10 @@ describe('Storage', function() {
         primary: true,
         codecs: 'avc1.4d401f, vorbis',
         audioCodec: 'vorbis',
-        videoCodec: 'avc1.4d401f'
+        videoCodec: 'avc1.4d401f',
+        roles: [],
+        videoId: 0,
+        audioId: 1
       }
     ];
     Promise

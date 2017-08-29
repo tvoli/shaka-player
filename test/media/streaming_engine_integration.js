@@ -65,6 +65,7 @@ describe('StreamingEngine', function() {
       rebufferingGoal: 2,
       bufferingGoal: 5,
       retryParameters: shaka.net.NetworkingEngine.defaultRetryParameters(),
+      infiniteRetriesForLiveStreams: true,
       bufferBehind: 15,
       ignoreTextStreamFailures: false,
       useRelativeCueTimestamps: false,
@@ -128,7 +129,8 @@ describe('StreamingEngine', function() {
       timeline = shaka.test.StreamingEngineUtil.createFakePresentationTimeline(
           0 /* segmentAvailabilityStart */,
           60 /* segmentAvailabilityEnd */,
-          60 /* presentationDuration */);
+          60 /* presentationDuration */,
+          false /* isLive */);
 
       setupNetworkingEngine(
           0 /* firstPeriodStartTime */,
@@ -162,7 +164,8 @@ describe('StreamingEngine', function() {
       timeline = shaka.test.StreamingEngineUtil.createFakePresentationTimeline(
           275 - 10 /* segmentAvailabilityStart */,
           295 - 10 /* segmentAvailabilityEnd */,
-          Infinity /* presentationDuration */);
+          Infinity /* presentationDuration */,
+          true /* isLive */);
 
       setupNetworkingEngine(
           0 /* firstPeriodStartTime */,
@@ -515,8 +518,13 @@ describe('StreamingEngine', function() {
           // We should be playing smoothly and not seeking repeatedly as we fall
           // outside the window.
           //
-          // We seek once above, then Playhead seeks once to adjust, plus a
-          // couple extra.
+          // Expected seeks:
+          //   1. seek to live stream start time during startup
+          //   2. explicit seek in the test to get outside the window
+          //   3. Playhead seeks to force us back inside the window
+          //   4. (maybe) seek if there is a gap at the period boundary
+          //   5. (maybe) seek to flush a pipeline stall
+          expect(seekCount).toBeGreaterThan(2);
           expect(seekCount).toBeLessThan(6);
 
           done();
@@ -669,7 +677,8 @@ describe('StreamingEngine', function() {
             shaka.test.StreamingEngineUtil.createFakePresentationTimeline(
                 0 /* segmentAvailabilityStart */,
                 30 /* segmentAvailabilityEnd */,
-                30 /* presentationDuration */);
+                30 /* presentationDuration */,
+                false /* isLive */);
 
         setupNetworkingEngine(
             0 /* firstPeriodStartTime */,

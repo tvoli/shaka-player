@@ -135,7 +135,7 @@ shakaDemo.preparePlayer_ = function(asset) {
   var player = shakaDemo.player_;
 
   var config = /** @type {shakaExtern.PlayerConfiguration} */(
-      { abr: {}, manifest: { dash: {} } });
+      { abr: {}, streaming: {}, manifest: { dash: {} } });
   config.manifest.dash.clockSyncUri =
       '//shaka-player-demo.appspot.com/time.txt';
 
@@ -171,6 +171,11 @@ shakaDemo.preparePlayer_ = function(asset) {
       document.getElementById('preferredTextLanguage').value;
   config.abr.enabled =
       document.getElementById('enableAdaptation').checked;
+  var smallGapLimit = document.getElementById('smallGapLimit').value;
+  if (!isNaN(Number(smallGapLimit)) && smallGapLimit.length > 0)
+    config.streaming.smallGapLimit = Number(smallGapLimit);
+  config.streaming.jumpLargeGaps =
+      document.getElementById('jumpLargeGaps').checked;
 
   player.configure(config);
 
@@ -202,8 +207,9 @@ shakaDemo.load = function() {
     shakaDemo.hashShouldChange_();
 
     // Audio-only tracks have no width/height.
-    var videoTracks =
-        player.getVariantTracks().filter(function(t) { return t.width; });
+    var videoTracks = player.getVariantTracks().filter(function(t) {
+      return t.videoCodec;
+    });
 
     // Set a different poster for audio-only assets.
     if (videoTracks.length == 0) {

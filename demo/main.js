@@ -109,6 +109,11 @@ shakaDemo.init = function() {
 
   shaka.polyfill.installAll();
 
+  // Display uncaught exceptions.
+  window.addEventListener('error', function(event) {
+    shakaDemo.onError_(/** @type {!shaka.util.Error} */ (event.error));
+  });
+
   if (!shaka.Player.isBrowserSupported()) {
     var errorDisplayLink = document.getElementById('errorDisplayLink');
     var error = 'Your browser is not supported!';
@@ -311,6 +316,28 @@ shakaDemo.postBrowserCheckParams_ = function(params) {
     shakaDemo.updateButtons_(/* canHide */ true);
   }
 
+  var smallGapLimit = document.getElementById('smallGapLimit');
+  smallGapLimit.placeholder = 0.5; // The default smallGapLimit.
+  if ('smallGapLimit' in params) {
+    smallGapLimit.value = params['smallGapLimit'];
+    // Call onGapInput_ manually, because setting the value
+    // programatically doesn't fire 'input' event.
+    var fakeEvent = /** @type {!Event} */({target: smallGapLimit});
+    shakaDemo.onGapInput_(fakeEvent);
+  }
+
+  var jumpLargeGaps = document.getElementById('jumpLargeGaps');
+  if ('jumpLargeGaps' in params) {
+    jumpLargeGaps.checked = true;
+    // Call onJumpLargeGapsChange_ manually, because setting checked
+    // programatically doesn't fire a 'change' event.
+    var fakeEvent = /** @type {!Event} */({target: jumpLargeGaps});
+    shakaDemo.onJumpLargeGapsChange_(fakeEvent);
+  } else {
+    jumpLargeGaps.checked =
+        shakaDemo.player_.getConfiguration().streaming.jumpLargeGaps;
+  }
+
   if ('noadaptation' in params) {
     var enableAdaptation = document.getElementById('enableAdaptation');
     enableAdaptation.checked = false;
@@ -327,6 +354,15 @@ shakaDemo.postBrowserCheckParams_ = function(params) {
     // programatically doesn't fire a 'change' event.
     var fakeEvent = /** @type {!Event} */({target: showTrickPlay});
     shakaDemo.onTrickPlayChange_(fakeEvent);
+  }
+
+  if ('nativecontrols' in params) {
+    var showNative = document.getElementById('showNative');
+    showNative.checked = true;
+    // Call onNativeChange_ manually, because setting checked
+    // programatically doesn't fire a 'change' event.
+    var fakeEvent = /** @type {!Event} */({target: showNative});
+    shakaDemo.onNativeChange_(fakeEvent);
   }
 
   // Allow the hash to be changed, and give it an initial change.
@@ -408,6 +444,12 @@ shakaDemo.hashShouldChange_ = function() {
   }
 
   // Save config panel state.
+  if (document.getElementById('smallGapLimit').value.length) {
+    params.push('smallGapLimit=' +
+        document.getElementById('smallGapLimit').value);
+  }
+  if (document.getElementById('jumpLargeGaps').checked)
+    params.push('jumpLargeGaps');
   var audioLang = document.getElementById('preferredAudioLanguage').value;
   var textLang = document.getElementById('preferredTextLanguage').value;
   if (textLang != audioLang) {
@@ -424,6 +466,9 @@ shakaDemo.hashShouldChange_ = function() {
   }
   if (document.getElementById('showTrickPlay').checked) {
     params.push('trickplay');
+  }
+  if (document.getElementById('showNative').checked) {
+    params.push('nativecontrols');
   }
   if (shaka.log) {
     var logLevelList = document.getElementById('logLevelList');

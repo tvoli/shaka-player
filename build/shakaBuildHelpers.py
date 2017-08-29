@@ -21,6 +21,7 @@ This uses two environment variables to help with debugging the scripts:
 """
 
 import errno
+import logging
 import os
 import platform
 import re
@@ -114,13 +115,13 @@ def execute_subprocess(args, pipeOut=True):
     The same value as subprocess.Popen.
   """
   if os.environ.get('PRINT_ARGUMENTS'):
-    print ' '.join([quote_argument(x) for x in args])
+    logging.info(' '.join([quote_argument(x) for x in args]))
   try:
     out = subprocess.PIPE if pipeOut else None
     return subprocess.Popen(args, stdin=subprocess.PIPE, stdout=out)
   except OSError as e:
     if e.errno == errno.ENOENT:
-      print >> sys.stderr, '*** A required dependency is missing: ' + args[0]
+      logging.error('*** A required dependency is missing: %s', args[0])
       # Exit early to avoid showing a confusing stack trace.
       sys.exit(1)
     raise
@@ -153,12 +154,17 @@ def cygwin_safe_path(path):
 
 def git_version():
   """Gets the version of the library from git."""
-  try:
-    # Check git tags for a version number, noting if the sources are dirty.
-    cmd_line = ['git', '-C', get_source_base(), 'describe', '--tags', '--dirty']
-    return execute_get_output(cmd_line).strip()
-  except subprocess.CalledProcessError:
-    raise RuntimeError('Unable to determine library version!')
+  # Check if the shaka-player source base directory has '.git' file.
+  git_path = os.path.join(get_source_base(), '.git')
+  if not os.path.exists(git_path):
+    raise RuntimeError('no .git file is in the shaka-player repository.')
+  else:
+    try:
+      # Check git tags for a version number, noting if the sources are dirty.
+      cmd_line = ['git', '-C', get_source_base(), 'describe', '--tags', '--dirty']
+      return execute_get_output(cmd_line).strip()
+    except subprocess.CalledProcessError:
+      raise RuntimeError('Unable to determine library version!')
 
 
 def npm_version(is_dirty=False):
@@ -224,6 +230,19 @@ def get_node_binary_path(name):
   return name
 
 
+class InDir(object):
+  """A Context Manager that changes directories temporarily and safely."""
+  def __init__(self, path):
+    self.new_path = path
+
+  def __enter__(self):
+    self.old_path = os.getcwd()
+    os.chdir(self.new_path)
+
+  def __exit__(self, type, value, traceback):
+    os.chdir(self.old_path)
+
+
 def update_node_modules():
   """Updates the node modules using 'npm', if they have not already been
      updated recently enough."""
@@ -237,12 +256,21 @@ def update_node_modules():
   version = execute_get_output([cmd, '-v'])
 
   if _parse_version(version) < _parse_version('1.3.12'):
-    print >> sys.stderr, 'npm version is too old, please upgrade.  e.g.:'
-    print >> sys.stderr, '  npm install -g npm'
+    logging.error('npm version is too old, please upgrade.  e.g.:')
+    logging.error('  npm install -g npm')
     return False
 
   # Update the modules.
-  execute_get_output([cmd, '--prefix', base, 'update'])
+  # Actually change directories instead of using npm --prefix.
+  # See npm/npm#17027 and google/shaka-player#776 for more details.
+  with InDir(base):
+    if _parse_version(version) >= _parse_version('5.0.0'):
+      # npm update seems to be the wrong thing in npm v5, so use install.
+      # See google/shaka-player#854 for more details.
+      execute_get_output([cmd, 'install'])
+    else:
+      execute_get_output([cmd, 'update'])
+
   # Update the timestamp of the file that tracks when we last updated.
   open(_node_modules_last_update_path(), 'w').close()
   return True
@@ -256,11 +284,15 @@ def run_main(main):
   Args:
     main: The main function to call.
   """
+  logging.getLogger().setLevel(logging.INFO)
+  fmt = '[%(levelname)s] %(message)s'
+  logging.basicConfig(format=fmt)
+
   try:
     sys.exit(main(sys.argv[1:]))
   except KeyboardInterrupt:
     if os.environ.get('RAISE_INTERRUPT'):
       raise
     print >> sys.stderr  # Clear the current line that has ^C on it.
-    print >> sys.stderr, 'Keyboard interrupt'
+    logging.error('Keyboard interrupt')
     sys.exit(1)

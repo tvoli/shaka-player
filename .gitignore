@@ -4,3 +4,5 @@ node_modules
 dist/
 docs/api/
 coverage/
+.idea/
+npm-debug.log
