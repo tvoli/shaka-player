@@ -999,8 +999,6 @@ describe('DashParser Manifest', function() {
         .then(done);
   });
 
-<<<<<<< HEAD
-=======
   describe('AudioChannelConfiguration', function() {
     /**
      * @param {?number} expectedNumChannels The expected number of channels
@@ -1111,7 +1109,6 @@ describe('DashParser Manifest', function() {
     });
   });
 
->>>>>>> v2.2.5_google
   /**
    * @param {string} manifestText
    * @param {Uint8Array} emsgUpdate

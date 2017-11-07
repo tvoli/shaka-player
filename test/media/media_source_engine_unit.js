@@ -42,12 +42,6 @@ describe('MediaSourceEngine', function() {
   var mediaSourceEngine;
 
   beforeAll(function() {
-<<<<<<< HEAD
-    Util = shaka.test.Util;
-    ContentType = shaka.util.ManifestParserUtils.ContentType;
-    originalIsTypeSupported = window.MediaSource.isTypeSupported;
-=======
->>>>>>> v2.2.5_google
     // Since this is not an integration test, we don't want MediaSourceEngine to
     // fail assertions based on browser support for types.  Pretend that all
     // video and audio types are supported.
@@ -61,11 +55,7 @@ describe('MediaSourceEngine', function() {
 
   afterAll(function() {
     window.MediaSource.isTypeSupported = originalIsTypeSupported;
-<<<<<<< HEAD
-    shaka.media.TextEngine = originalTextEngine;
-=======
     shaka.text.TextEngine = originalTextEngine;
->>>>>>> v2.2.5_google
   });
 
   beforeEach(/** @suppress {invalidCasts} */ function() {

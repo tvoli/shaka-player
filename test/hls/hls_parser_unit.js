@@ -113,19 +113,11 @@ describe('HlsParser', function() {
     testHlsParser(master, media, manifest, done);
   });
 
-<<<<<<< HEAD
-  it('parses audio-only variant', function(done) {
-    var master = [
-      '#EXTM3U\n',
-      '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="mp4a"\n',
-      'test://audio'
-=======
   it('guesses video-only variant by codecs', function(done) {
     var master = [
       '#EXTM3U\n',
       '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="avc1"\n',
       'test://video'
->>>>>>> v2.2.5_google
     ].join('');
 
     var media = [
@@ -143,29 +135,17 @@ describe('HlsParser', function() {
               .addVariant(jasmine.any(Number))
                 .language('und')
                 .bandwidth(200)
-<<<<<<< HEAD
-                .addAudio(jasmine.any(Number))
-                  .anySegmentFunctions()
-                  .anyInitSegment()
-                  .presentationTimeOffset(0)
-                  .mime('audio/mp4', 'mp4a')
-=======
                 .addVideo(jasmine.any(Number))
                   .anySegmentFunctions()
                   .anyInitSegment()
                   .presentationTimeOffset(0)
                   .mime('video/mp4', 'avc1')
->>>>>>> v2.2.5_google
           .build();
 
     testHlsParser(master, media, manifest, done);
   });
 
-<<<<<<< HEAD
-  it('parses audio+video variant', function(done) {
-=======
   it('parses audio-only variant', function(done) {
->>>>>>> v2.2.5_google
     var master = [
       '#EXTM3U\n',
       '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="mp4a"\n',
@@ -662,8 +642,6 @@ describe('HlsParser', function() {
     testHlsParser(master, media, manifest, done);
   });
 
-<<<<<<< HEAD
-=======
   it('should call filterAllPeriods for parsing', function(done) {
     var master = [
       '#EXTM3U\n',
@@ -696,7 +674,6 @@ describe('HlsParser', function() {
         }).catch(fail).then(done);
   });
 
->>>>>>> v2.2.5_google
   it('gets mime type from header request', function(done) {
     var master = [
       '#EXTM3U\n',
@@ -729,12 +706,8 @@ describe('HlsParser', function() {
                   .size(960, 540)
           .build();
 
-<<<<<<< HEAD
-    var headers = {'content-type': 'video/mp4'};
-=======
     // The extra parameters should be stripped by the parser.
     var headers = {'content-type': 'video/mp4; foo=bar'};
->>>>>>> v2.2.5_google
     fakeNetEngine.setHeadersMap({
       'test://main.test': headers
     });
@@ -1350,36 +1323,6 @@ describe('HlsParser', function() {
       verifyError(master, media, error, done);
     });
 
-<<<<<<< HEAD
-    it('if encountered live content (PLAYLIST-TYPE:EVENT)', function(done) {
-      var master = [
-        '#EXTM3U\n',
-        '#EXT-X-STREAM-INF:BANDWIDTH=200,CODECS="aaa,bbb",',
-        'RESOLUTION=960x540,FRAME-RATE=60,VIDEO="vid"\n',
-        'test://audio\n',
-        '#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID="vid",',
-        'URI="test://video"'
-      ].join('');
-
-      var media = [
-        '#EXTM3U\n',
-        '#EXT-X-MAP:URI="test://main.mp4",BYTERANGE="616@0"\n',
-        '#EXT-X-PLAYLIST-TYPE:EVENT\n',
-        '#EXTINF:5,\n',
-        '#EXT-X-BYTERANGE:121090@616\n',
-        'test://main.mp4'
-      ].join('');
-
-      var error = new shaka.util.Error(
-          shaka.util.Error.Severity.CRITICAL,
-          shaka.util.Error.Category.MANIFEST,
-          Code.HLS_LIVE_CONTENT_NOT_SUPPORTED);
-
-      verifyError(master, media, error, done);
-    });
-
-=======
->>>>>>> v2.2.5_google
     it('if encountered live content (no PLAYLIST-TYPE tag)', function(done) {
       var master = [
         '#EXTM3U\n',
