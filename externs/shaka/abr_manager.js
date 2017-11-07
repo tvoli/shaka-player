@@ -39,18 +39,27 @@ shakaExtern.AbrManager = function() {};
 
 
 /**
- * A callback from the Player that should be called when the AbrManager decides
- * it's time to change to a different set of streams.
+ * A callback into the Player that should be called when the AbrManager decides
+ * it's time to change to a different variant.
  *
- * The first argument is a map of content types to chosen streams.
+ * The first argument is a variant to switch to.
  *
  * The second argument is an optional boolean.  If true, all data will be
  * from the buffer, which will result in a buffering event.
  *
- * @typedef {function(!Object.<string, !shakaExtern.Stream>, boolean=)}
+ * @typedef {function(shakaExtern.Variant, boolean=)}
  * @exportDoc
  */
 shakaExtern.AbrManager.SwitchCallback;
+
+
+/**
+ * A factory for creating the abr manager.  This will be called with 'new'.
+ *
+ * @typedef {function(new:shakaExtern.AbrManager)}
+ * @exportDoc
+ */
+shakaExtern.AbrManager.Factory;
 
 
 /**
@@ -81,31 +90,16 @@ shakaExtern.AbrManager.prototype.setVariants = function(variants) {};
 
 
 /**
- * Updates manager's text streams collection.
- *
- * @param {!Array.<!shakaExtern.Stream>} streams
+ * Chooses one variant to switch to.  Called by the Player.
+ * @return {shakaExtern.Variant}
  * @exportDoc
  */
-shakaExtern.AbrManager.prototype.setTextStreams = function(streams) {};
+shakaExtern.AbrManager.prototype.chooseVariant = function() {};
 
 
 /**
- * Chooses one Stream from each media type in mediaTypesToUpdate to switch to.
- * All Variants and Streams must be from the same Period.
- *
- * @param {!Array.<!string>} mediaTypesToUpdate
- * @return {!Object.<string, shakaExtern.Stream>}
- * @exportDoc
- */
-// TODO: Consider breaking down into chooseVariant() and chooseText()
-shakaExtern.AbrManager.prototype.chooseStreams =
-    function(mediaTypesToUpdate) {};
-
-
-/**
- * Enables automatic Stream choices from the last StreamSets passed to
- * chooseStreams(). After this, the AbrManager may call switchCallback() at any
- * time.
+ * Enables automatic Variant choices from the last ones passed to setVariants.
+ * After this, the AbrManager may call switchCallback() at any time.
  *
  * @exportDoc
  */
@@ -145,18 +139,9 @@ shakaExtern.AbrManager.prototype.getBandwidthEstimate = function() {};
 
 
 /**
- * Sets the default bandwidth estimate to use if there is not enough data.
+ * Sets the abr configurations.
  *
- * @param {number} estimate The default bandwidth estimate, in bit/sec.
+ * @param {shakaExtern.AbrConfiguration} config
  * @exportDoc
  */
-shakaExtern.AbrManager.prototype.setDefaultEstimate = function(estimate) {};
-
-
-/**
- * Sets the restrictions that AbrManager will use when choosing streams.
- *
- * @param {shakaExtern.Restrictions} restrictions
- * @exportDoc
- */
-shakaExtern.AbrManager.prototype.setRestrictions = function(restrictions) {};
+shakaExtern.AbrManager.prototype.configure = function(config) {};

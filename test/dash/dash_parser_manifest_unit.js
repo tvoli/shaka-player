@@ -17,10 +17,16 @@
 
 // Test basic manifest parsing functionality.
 describe('DashParser Manifest', function() {
-  var Dash;
+  /** @const */
+  var Dash = shaka.test.Dash;
+
+  /** @type {!shaka.test.FakeNetworkingEngine} */
   var fakeNetEngine;
+  /** @type {!shaka.dash.DashParser} */
   var parser;
+  /** @type {!jasmine.Spy} */
   var onEventSpy;
+  /** @type {shakaExtern.ManifestParser.PlayerInterface} */
   var playerInterface;
 
   beforeEach(function() {
@@ -29,15 +35,12 @@ describe('DashParser Manifest', function() {
     onEventSpy = jasmine.createSpy('onEvent');
     playerInterface = {
       networkingEngine: fakeNetEngine,
-      filterPeriod: function() {},
+      filterNewPeriod: function() {},
+      filterAllPeriods: function() {},
       onTimelineRegionAdded: fail,  // Should not have any EventStream elements.
-      onEvent: onEventSpy,
+      onEvent: shaka.test.Util.spyFunc(onEventSpy),
       onError: fail
     };
-  });
-
-  beforeAll(function() {
-    Dash = shaka.test.Dash;
   });
 
   /**
@@ -373,10 +376,10 @@ describe('DashParser Manifest', function() {
   });
 
   describe('supports UTCTiming', function() {
-    var originalNow;
+    /** @const */
+    var originalNow = Date.now;
 
     beforeAll(function() {
-      originalNow = Date.now;
       Date.now = function() { return 10 * 1000; };
     });
 
@@ -630,7 +633,8 @@ describe('DashParser Manifest', function() {
       var error = new shaka.util.Error(
           shaka.util.Error.Severity.CRITICAL,
           shaka.util.Error.Category.MANIFEST,
-          shaka.util.Error.Code.DASH_INVALID_XML);
+          shaka.util.Error.Code.DASH_INVALID_XML,
+          'dummy://foo');
       Dash.testFails(done, source, error);
     });
 
@@ -649,7 +653,29 @@ describe('DashParser Manifest', function() {
       var error = new shaka.util.Error(
           shaka.util.Error.Severity.CRITICAL,
           shaka.util.Error.Category.MANIFEST,
-          shaka.util.Error.Code.DASH_INVALID_XML);
+          shaka.util.Error.Code.DASH_INVALID_XML,
+          'dummy://foo');
+      Dash.testFails(done, source, error);
+    });
+
+    it('xlink problems when xlinkFailGracefully is false', function(done) {
+      var source = [
+        '<MPD minBufferTime="PT75S" xmlns="urn:mpeg:dash:schema:mpd:2011" ' +
+            'xmlns:xlink="http://www.w3.org/1999/xlink">',
+        '  <Period id="1" duration="PT30S">',
+        '    <AdaptationSet mimeType="video/mp4">',
+        '      <Representation bandwidth="1" xlink:href="https://xlink1" ' +
+            'xlink:actuate="onInvalid">', // Incorrect actuate
+        '        <SegmentBase indexRange="100-200" />',
+        '      </Representation>',
+        '    </AdaptationSet>',
+        '  </Period>',
+        '</MPD>'
+      ].join('\n');
+      var error = new shaka.util.Error(
+          shaka.util.Error.Severity.CRITICAL,
+          shaka.util.Error.Category.MANIFEST,
+          shaka.util.Error.Code.DASH_UNSUPPORTED_XLINK_ACTUATE);
       Dash.testFails(done, source, error);
     });
 
@@ -671,7 +697,8 @@ describe('DashParser Manifest', function() {
       var error = new shaka.util.Error(
           shaka.util.Error.Severity.CRITICAL,
           shaka.util.Error.Category.MANIFEST,
-          shaka.util.Error.Code.DASH_INVALID_XML);
+          shaka.util.Error.Code.DASH_INVALID_XML,
+          'dummy://foo');
       Dash.testFails(done, source, error);
     });
 
@@ -972,6 +999,119 @@ describe('DashParser Manifest', function() {
         .then(done);
   });
 
+<<<<<<< HEAD
+=======
+  describe('AudioChannelConfiguration', function() {
+    /**
+     * @param {?number} expectedNumChannels The expected number of channels
+     * @param {!Object.<string, string>} schemeMap A map where the map key is
+     *   the AudioChannelConfiguration's schemeIdUri attribute, and the map
+     *   value is the value attribute.
+     * @return {!Promise}
+     */
+    function testAudioChannelConfiguration(expectedNumChannels, schemeMap) {
+      var header = [
+        '<MPD minBufferTime="PT75S">',
+        '  <Period id="1" duration="PT30S">',
+        '    <AdaptationSet mimeType="audio/mp4">',
+        '      <Representation id="1" bandwidth="1">'
+      ].join('\n');
+
+      var configs = [];
+      for (var scheme in schemeMap) {
+        var value = schemeMap[scheme];
+        configs.push('<AudioChannelConfiguration schemeIdUri="' + scheme +
+                     '" value="' + value + '" />');
+      }
+
+      var footer = [
+        '        <SegmentTemplate media="1-$Number$.mp4" duration="1" />',
+        '      </Representation>',
+        '    </AdaptationSet>',
+        '  </Period>',
+        '</MPD>'
+      ].join('\n');
+
+      var source = header + configs.join('\n') + footer;
+
+      // Create a fresh parser, to avoid issues when we chain multiple tests
+      // together.
+      parser = shaka.test.Dash.makeDashParser();
+
+      fakeNetEngine.setResponseMapAsText({'dummy://foo': source});
+      return parser.start('dummy://foo', playerInterface)
+          .then(function(manifest) {
+            expect(manifest.periods.length).toBe(1);
+            expect(manifest.periods[0].variants.length).toBe(1);
+
+            var variant = manifest.periods[0].variants[0];
+            expect(variant.audio.channelsCount).toEqual(expectedNumChannels);
+          }).catch(fail);
+    }
+
+    it('parses outputChannelPositionList scheme', function(done) {
+      Promise.resolve().then(function() {
+        // Parses the space-separated list and finds 8 channels.
+        return testAudioChannelConfiguration(8,
+            { 'urn:mpeg:dash:outputChannelPositionList:2012':
+                  '2 0 1 4 5 3 17 1' });
+      }).then(function() {
+        // Does not get confused about extra spaces.
+        return testAudioChannelConfiguration(7,
+            { 'urn:mpeg:dash:outputChannelPositionList:2012':
+                  '  5 2 1 12   8 9   1  '});
+      }).then(done);
+    });
+
+    it('parses 23003:3 scheme', function(done) {
+      return Promise.resolve().then(function() {
+        // Parses a simple channel count.
+        return testAudioChannelConfiguration(2,
+            { 'urn:mpeg:dash:23003:3:audio_channel_configuration:2011': '2' });
+      }).then(function() {
+        // This scheme seems to use the same format.
+        return testAudioChannelConfiguration(6,
+            { 'urn:dts:dash:audio_channel_configuration:2012': '6' });
+      }).then(function() {
+        // Results in null if the value is not an integer.
+        return testAudioChannelConfiguration(null,
+            { 'urn:mpeg:dash:23003:3:audio_channel_configuration:2011':
+                  'foo' });
+      }).then(done);
+    });
+
+    it('parses dolby scheme', function(done) {
+      return Promise.resolve().then(function() {
+        // Parses a hex value in which each 1-bit is a channel.
+        return testAudioChannelConfiguration(6,
+            { 'tag:dolby.com,2014:dash:audio_channel_configuration:2011':
+                  'F801' });
+      }).then(function() {
+        // This scheme seems to use the same format.
+        return testAudioChannelConfiguration(8,
+            { 'urn:dolby:dash:audio_channel_configuration:2011': '7037' });
+      }).then(function() {
+        // Results in null if the value is not a valid hex number.
+        return testAudioChannelConfiguration(null,
+            { 'urn:dolby:dash:audio_channel_configuration:2011': 'x' });
+      }).then(done);
+    });
+
+    it('ignores unrecognized schemes', function(done) {
+      return Promise.resolve().then(function() {
+        return testAudioChannelConfiguration(null,
+            { 'foo': 'bar' });
+      }).then(function() {
+        return testAudioChannelConfiguration(2,
+            {
+              'foo': 'bar',
+              'urn:mpeg:dash:23003:3:audio_channel_configuration:2011': '2'
+            });
+      }).then(done);
+    });
+  });
+
+>>>>>>> v2.2.5_google
   /**
    * @param {string} manifestText
    * @param {Uint8Array} emsgUpdate
@@ -982,8 +1122,8 @@ describe('DashParser Manifest', function() {
     parser.start('dummy://foo', playerInterface)
         .then(function() {
           expect(fakeNetEngine.registerResponseFilter).toHaveBeenCalled();
-          var filter =
-              fakeNetEngine.registerResponseFilter.calls.mostRecent().args[0];
+          var filter = /** @type {!Function} */ (
+              fakeNetEngine.registerResponseFilter.calls.mostRecent().args[0]);
           var type = shaka.net.NetworkingEngine.RequestType.SEGMENT;
           var response = {data: emsgUpdate.buffer};
           fakeNetEngine.request.calls.reset();

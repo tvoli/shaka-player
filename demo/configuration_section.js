@@ -47,11 +47,38 @@ shakaDemo.setupConfiguration_ = function() {
       'change', shakaDemo.onLogLevelChange_);
   document.getElementById('enableAutoplay').addEventListener(
       'change', shakaDemo.onAutoplayChange_);
+  document.getElementById('drmSettingsVideoRobustness').addEventListener(
+      'input', shakaDemo.onDrmSettingsChange_);
+  document.getElementById('drmSettingsAudioRobustness').addEventListener(
+      'input', shakaDemo.onDrmSettingsChange_);
+
+  var robustnessSuggestions = document.getElementById('robustnessSuggestions');
+  if (shakaDemo.support_.drm['com.widevine.alpha']) {
+    var widevineSuggestions = ['SW_SECURE_CRYPTO', 'SW_SECURE_DECODE',
+      'HW_SECURE_CRYPTO', 'HW_SECURE_DECODE', 'HW_SECURE_ALL'];
+    // Add Widevine robustness suggestions if it is supported.
+    widevineSuggestions.forEach(function(suggestion) {
+      var option = document.createElement('option');
+      option.value = suggestion;
+      option.textContent = 'Widevine';
+      robustnessSuggestions.appendChild(option);
+    });
+  }
 };
 
 
 /** @private */
 shakaDemo.onAutoplayChange_ = function() {
+  // Change the hash, to mirror this.
+  shakaDemo.hashShouldChange_();
+};
+
+
+/**
+ * @param {!Event} event
+ * @private
+ */
+shakaDemo.onDrmSettingsChange_ = function(event) {
   // Change the hash, to mirror this.
   shakaDemo.hashShouldChange_();
 };

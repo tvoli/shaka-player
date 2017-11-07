@@ -97,16 +97,26 @@ var SeekTestInfo;
 
 
 describe('Playhead', function() {
+  /** @const */
+  var Util = shaka.test.Util;
+
+  /** @type {!shaka.test.FakeVideo} */
   var video;
+  /** @type {!shaka.test.FakePresentationTimeline} */
   var timeline;
+  /** @type {shakaExtern.Manifest} */
   var manifest;
+  /** @type {!shaka.media.Playhead} */
   var playhead;
+  /** @type {shakaExtern.StreamingConfiguration} */
   var config;
 
   // Callback to us from Playhead when a valid 'seeking' event occurs.
+  /** @type {!jasmine.Spy} */
   var onSeek;
 
   // Callback to us from Playhead when an event should be sent to the app.
+  /** @type {!jasmine.Spy} */
   var onEvent;
 
   beforeEach(function() {
@@ -125,7 +135,6 @@ describe('Playhead', function() {
     timeline.getDuration.and.throwError(new Error());
     timeline.setDuration.and.throwError(new Error());
 
-    // shakaExtern.Manifest
     manifest = {
       periods: [],
       presentationTimeline: timeline,
@@ -133,12 +142,11 @@ describe('Playhead', function() {
       offlineSessionIds: []
     };
 
-    // shakaExtern.StreamingConfiguration
     config = {
       rebufferingGoal: 10,
       bufferingGoal: 5,
       retryParameters: shaka.net.NetworkingEngine.defaultRetryParameters(),
-      infiniteRetriesForLiveStreams: true,
+      failureCallback: function() {},
       bufferBehind: 15,
       ignoreTextStreamFailures: false,
       useRelativeCueTimestamps: false,
@@ -150,7 +158,6 @@ describe('Playhead', function() {
 
   afterEach(function(done) {
     playhead.destroy().then(done);
-    playhead = null;
   });
 
   describe('getTime', function() {
@@ -160,8 +167,8 @@ describe('Playhead', function() {
           manifest,
           config,
           5 /* startTime */,
-          onSeek,
-          onEvent);
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
 
       expect(video.addEventListener).toHaveBeenCalledWith(
           'loadedmetadata', jasmine.any(Function), false);
@@ -200,14 +207,29 @@ describe('Playhead', function() {
           manifest,
           config,
           5 /* startTime */,
-          onSeek,
-          onEvent);
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
 
       expect(playhead.getTime()).toBe(5);
       expect(video.currentTime).toBe(5);
 
       video.currentTime = 6;
       expect(playhead.getTime()).toBe(6);
+    });
+
+    it('allows using startTime of 0', function() {
+      video.readyState = HTMLMediaElement.HAVE_METADATA;
+      timeline.isLive.and.returnValue(true);
+      timeline.getDuration.and.returnValue(Infinity);
+      timeline.getSegmentAvailabilityStart.and.returnValue(0);
+      timeline.getSegmentAvailabilityEnd.and.returnValue(60);
+      timeline.getSeekRangeEnd.and.returnValue(60);
+
+      playhead = new shaka.media.Playhead(
+          video, manifest, config, 0 /* startTime */, Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
+
+      expect(playhead.getTime()).toBe(0);
     });
   });  // getTime
 
@@ -226,8 +248,8 @@ describe('Playhead', function() {
         manifest,
         config,
         5 /* startTime */,
-        onSeek,
-        onEvent);
+        Util.spyFunc(onSeek),
+        Util.spyFunc(onEvent));
 
     // Calling on['seeking']() is like dispatching a 'seeking' event. So, each
     // time we change the video's current time or Playhead changes the video's
@@ -365,8 +387,8 @@ describe('Playhead', function() {
         manifest,
         config,
         5 /* startTime */,
-        onSeek,
-        onEvent);
+        Util.spyFunc(onSeek),
+        Util.spyFunc(onEvent));
 
     video.on['seeking']();
     expect(video.currentTime).toBe(5);
@@ -407,8 +429,8 @@ describe('Playhead', function() {
         manifest,
         config,
         5 /* startTime */,
-        onSeek,
-        onEvent);
+        Util.spyFunc(onSeek),
+        Util.spyFunc(onEvent));
     expect(video.currentTime).toBe(1000);
     video.on['seeking']();
 
@@ -440,8 +462,8 @@ describe('Playhead', function() {
           manifest,
           config,
           5 /* startTime */,
-          onSeek,
-          onEvent);
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
 
       video.on['seeking']();
       expect(video.currentTime).toBe(5);
@@ -473,8 +495,8 @@ describe('Playhead', function() {
           manifest,
           config,
           5 /* startTime */,
-          onSeek,
-          onEvent);
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
 
       video.on['seeking']();
       expect(video.currentTime).toBe(5);
@@ -627,8 +649,8 @@ describe('Playhead', function() {
               manifest,
               config,
               data.start /* startTime */,
-              onSeek,
-              onEvent);
+              Util.spyFunc(onSeek),
+              Util.spyFunc(onEvent));
 
           jasmine.clock().tick(1000);
           for (var time = data.start; time < data.waitingAt; time++) {
@@ -867,8 +889,8 @@ describe('Playhead', function() {
             manifest,
             config,
             data.start /* startTime */,
-            onSeek,
-            onEvent);
+            Util.spyFunc(onSeek),
+            Util.spyFunc(onEvent));
 
         jasmine.clock().tick(1000);
         expect(onEvent).not.toHaveBeenCalled();
@@ -930,8 +952,8 @@ describe('Playhead', function() {
           manifest,
           config,
           0 /* startTime */,
-          onSeek,
-          onEvent);
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
     });
 
     it('notices video rate changes', function() {

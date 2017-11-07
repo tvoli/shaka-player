@@ -65,6 +65,7 @@ shakaDemo.suppressHashChangeEvent_ = false;
 
 /**
  * @private
+<<<<<<< HEAD
  * @const {string}
  */
 shakaDemo.mainPoster_ = '//shaka-player-demo.appspot.com/assets/poster.jpg';
@@ -80,10 +81,27 @@ shakaDemo.audioOnlyPoster_ =
 
 /**
  * The registered ID of the v2.1 Chromecast receiver demo.
+=======
+>>>>>>> v2.2.5_google
+ * @const {string}
+ */
+shakaDemo.mainPoster_ = '//shaka-player-demo.appspot.com/assets/poster.jpg';
+
+
+/**
+ * @private
+ * @const {string}
+ */
+shakaDemo.audioOnlyPoster_ =
+    '//shaka-player-demo.appspot.com/assets/audioOnly.gif';
+
+
+/**
+ * The registered ID of the v2.2 Chromecast receiver demo.
  * @const {string}
  * @private
  */
-shakaDemo.CC_APP_ID_ = '658CCD53';
+shakaDemo.CC_APP_ID_ = '91580C19';
 
 
 /**
@@ -203,6 +221,7 @@ shakaDemo.getParams_ = function() {
   // Because they are being concatenated in this order, if both an
   // URL fragment and an URL parameter of the same type are present
   // the URL fragment takes precendence.
+  /** @type {!Array.<string>} */
   var combined = fields.concat(fragments);
   var params = {};
   for (var i = 0; i < combined.length; ++i) {
@@ -218,6 +237,14 @@ shakaDemo.getParams_ = function() {
   * @private
   */
 shakaDemo.preBrowserCheckParams_ = function(params) {
+  if ('videoRobustness' in params) {
+    document.getElementById('drmSettingsVideoRobustness').value =
+        params['videoRobustness'];
+  }
+  if ('audioRobustness' in params) {
+    document.getElementById('drmSettingsAudioRobustness').value =
+        params['audioRobustness'];
+  }
   if ('lang' in params) {
     document.getElementById('preferredAudioLanguage').value = params['lang'];
     document.getElementById('preferredTextLanguage').value = params['lang'];
@@ -492,6 +519,19 @@ shakaDemo.hashShouldChange_ = function() {
   if ('compiled' in shakaDemo.getParams_()) {
     params.push('compiled');
   }
+  if ('debug_compiled' in shakaDemo.getParams_()) {
+    params.push('debug_compiled');
+  }
+
+  // Store values for drm configuration.
+  var videoRobustness =
+      document.getElementById('drmSettingsVideoRobustness').value;
+  if (videoRobustness)
+    params.push('videoRobustness=' + videoRobustness);
+  var audioRobustness =
+      document.getElementById('drmSettingsAudioRobustness').value;
+  if (audioRobustness)
+    params.push('audioRobustness=' + audioRobustness);
 
   var newHash = '#' + params.join(';');
   if (newHash != location.hash) {

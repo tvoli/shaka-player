@@ -16,11 +16,12 @@
  */
 
 describe('DashParser SegmentList', function() {
-  var Dash;
-
-  beforeAll(function() {
-    Dash = shaka.test.Dash;
-  });
+  /** @const */
+  var Dash = shaka.test.Dash;
+  /** @const */
+  var ManifestParser = shaka.test.ManifestParser;
+  /** @const */
+  var baseUri = 'http://example.com/';
 
   shaka.test.Dash.makeTimelineTests('SegmentList', '', [
     '<SegmentURL media="s1.mp4" />',
@@ -45,8 +46,8 @@ describe('DashParser SegmentList', function() {
       '</SegmentList>'
     ], 65 /* duration */);
     var references = [
-      Dash.makeReference('s1.mp4', 1, 50, 60),
-      Dash.makeReference('s2.mp4', 2, 60, 65)
+      ManifestParser.makeReference('s1.mp4', 1, 50, 60, baseUri),
+      ManifestParser.makeReference('s2.mp4', 2, 60, 65, baseUri)
     ];
     Dash.testSegmentIndex(done, source, references);
   });
@@ -57,7 +58,8 @@ describe('DashParser SegmentList', function() {
       '  <SegmentURL media="s1.mp4" />',
       '</SegmentList>'
     ], 30 /* duration */);
-    var references = [Dash.makeReference('s1.mp4', 1, 0, 30)];
+    var references = [ManifestParser.makeReference('s1.mp4', 1,
+                                                   0, 30, baseUri)];
     Dash.testSegmentIndex(done, source, references);
   });
 
@@ -72,10 +74,10 @@ describe('DashParser SegmentList', function() {
         '</SegmentList>'
       ]);
       var references = [
-        Dash.makeReference('s1.mp4', 1, 0, 10),
-        Dash.makeReference('s2.mp4', 2, 10, 20),
-        Dash.makeReference('s3.mp4', 3, 20, 30),
-        Dash.makeReference('s4.mp4', 4, 30, 40)
+        ManifestParser.makeReference('s1.mp4', 1, 0, 10, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 10, 20, baseUri),
+        ManifestParser.makeReference('s3.mp4', 3, 20, 30, baseUri),
+        ManifestParser.makeReference('s4.mp4', 4, 30, 40, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -90,10 +92,10 @@ describe('DashParser SegmentList', function() {
         '</SegmentList>'
       ]);
       var references = [
-        Dash.makeReference('s1.mp4', 5, 40, 50),
-        Dash.makeReference('s2.mp4', 6, 50, 60),
-        Dash.makeReference('s3.mp4', 7, 60, 70),
-        Dash.makeReference('s4.mp4', 8, 70, 80)
+        ManifestParser.makeReference('s1.mp4', 5, 40, 50, baseUri),
+        ManifestParser.makeReference('s2.mp4', 6, 50, 60, baseUri),
+        ManifestParser.makeReference('s3.mp4', 7, 60, 70, baseUri),
+        ManifestParser.makeReference('s4.mp4', 8, 70, 80, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -106,8 +108,8 @@ describe('DashParser SegmentList', function() {
         '</SegmentList>'
       ]);
       var references = [
-        Dash.makeReference('s1.mp4', 1, 0, 10),
-        Dash.makeReference('s2.mp4', 2, 10, 20)
+        ManifestParser.makeReference('s1.mp4', 1, 0, 10, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 10, 20, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -122,10 +124,10 @@ describe('DashParser SegmentList', function() {
         '</SegmentList>'
       ]);
       var references = [
-        Dash.makeReference('s1.mp4', 1, 0, 2),
-        Dash.makeReference('s2.mp4', 2, 2, 4),
-        Dash.makeReference('s3.mp4', 3, 4, 6),
-        Dash.makeReference('s4.mp4', 4, 6, 8)
+        ManifestParser.makeReference('s1.mp4', 1, 0, 2, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 2, 4, baseUri),
+        ManifestParser.makeReference('s3.mp4', 3, 4, 6, baseUri),
+        ManifestParser.makeReference('s4.mp4', 4, 6, 8, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -198,10 +200,10 @@ describe('DashParser SegmentList', function() {
         '</MPD>'
       ].join('\n');
       var references = [
-        Dash.makeReference('s1.mp4', 1, 0, 50),
-        Dash.makeReference('s2.mp4', 2, 50, 100),
-        Dash.makeReference('s3.mp4', 3, 100, 150),
-        Dash.makeReference('s4.mp4', 4, 150, 200)
+        ManifestParser.makeReference('s1.mp4', 1, 0, 50, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 50, 100, baseUri),
+        ManifestParser.makeReference('s3.mp4', 3, 100, 150, baseUri),
+        ManifestParser.makeReference('s4.mp4', 4, 150, 200, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -231,9 +233,9 @@ describe('DashParser SegmentList', function() {
         '</MPD>'
       ].join('\n');
       var references = [
-        Dash.makeReference('s1.mp4', 1, 50, 60),
-        Dash.makeReference('s2.mp4', 2, 60, 65),
-        Dash.makeReference('s3.mp4', 3, 65, 73)
+        ManifestParser.makeReference('s1.mp4', 1, 50, 60, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 60, 65, baseUri),
+        ManifestParser.makeReference('s3.mp4', 3, 65, 73, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -263,9 +265,9 @@ describe('DashParser SegmentList', function() {
         '</MPD>'
       ].join('\n');
       var references = [
-        Dash.makeReference('s1.mp4', 1, 50, 60),
-        Dash.makeReference('s2.mp4', 2, 60, 65),
-        Dash.makeReference('s3.mp4', 3, 65, 73)
+        ManifestParser.makeReference('s1.mp4', 1, 50, 60, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 60, 65, baseUri),
+        ManifestParser.makeReference('s3.mp4', 3, 65, 73, baseUri)
       ];
       Dash.testSegmentIndex(done, source, references);
     });
@@ -299,10 +301,10 @@ describe('DashParser SegmentList', function() {
         '</MPD>'
       ].join('\n');
       var references = [
-        Dash.makeReference('s1.mp4', 1, 40, 50),
-        Dash.makeReference('s2.mp4', 2, 50, 55),
-        Dash.makeReference('s3.mp4', 3, 55, 63),
-        Dash.makeReference('s4.mp4', 4, 63, 70)
+        ManifestParser.makeReference('s1.mp4', 1, 40, 50, baseUri),
+        ManifestParser.makeReference('s2.mp4', 2, 50, 55, baseUri),
+        ManifestParser.makeReference('s3.mp4', 3, 55, 63, baseUri),
+        ManifestParser.makeReference('s4.mp4', 4, 63, 70, baseUri)
       ];
 
       Dash.testSegmentIndex(done, source, references);

@@ -16,17 +16,24 @@
  */
 
 describe('MediaSourceEngine', function() {
+  /** @const */
+  var ContentType = shaka.util.ManifestParserUtils.ContentType;
+
+  /** @const */
+  var presentationDuration = 840;
+
+  /** @type {!HTMLVideoElement} */
   var video;
+  /** @type {!MediaSource} */
   var mediaSource;
+  /** @type {!shaka.media.MediaSourceEngine} */
   var mediaSourceEngine;
   var generators;
   var metadata;
-  var presentationDuration = 840;
-  var ContentType = shaka.util.ManifestParserUtils.ContentType;
   // TODO: add text streams to MSE integration tests
 
   beforeAll(function() {
-    video = /** @type {HTMLVideoElement} */ (document.createElement('video'));
+    video = /** @type {!HTMLVideoElement} */ (document.createElement('video'));
     video.width = 600;
     video.height = 400;
     document.body.appendChild(video);
@@ -85,18 +92,18 @@ describe('MediaSourceEngine', function() {
     return mediaSourceEngine.remove(type, start, end);
   }
 
-  function getFullMimeType(streamMetadata) {
-    var fullMimeType = streamMetadata.mimeType;
-    if (streamMetadata.codecs)
-      fullMimeType += '; codecs="' + streamMetadata.codecs + '"';
-    return fullMimeType;
+  function getFakeStream(streamMetadata) {
+    return {
+      mimeType: streamMetadata.mimeType,
+      codecs: streamMetadata.codecs
+    };
   }
 
   it('buffers MP4 video', function(done) {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
     mediaSourceEngine.setDuration(presentationDuration).then(function() {
       return appendInit(ContentType.VIDEO);
@@ -118,7 +125,7 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
     mediaSourceEngine.setDuration(presentationDuration).then(function() {
       return appendInit(ContentType.VIDEO);
@@ -148,7 +155,7 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
     mediaSourceEngine.setDuration(0).then(function() {
       return appendInit(ContentType.VIDEO);
@@ -179,7 +186,7 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
     mediaSourceEngine.setDuration(presentationDuration).then(function() {
       return appendInit(ContentType.VIDEO);
@@ -209,7 +216,7 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
     checkOrder(mediaSourceEngine.setDuration(presentationDuration));
     checkOrder(appendInit(ContentType.VIDEO));
@@ -227,7 +234,7 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.AUDIO] = getFullMimeType(metadata.audio);
+    initObject[ContentType.AUDIO] = getFakeStream(metadata.audio);
     mediaSourceEngine.init(initObject);
     mediaSourceEngine.setDuration(presentationDuration).then(function() {
       // NOTE: For some reason, this appendInit never resolves on my Windows VM.
@@ -251,8 +258,8 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.AUDIO] = getFullMimeType(metadata.audio);
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.AUDIO] = getFakeStream(metadata.audio);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
 
     mediaSourceEngine.setDuration(presentationDuration).catch(fail);
@@ -310,7 +317,7 @@ describe('MediaSourceEngine', function() {
     // Create empty object first and initialize the fields through
     // [] to allow field names to be expressions.
     var initObject = {};
-    initObject[ContentType.VIDEO] = getFullMimeType(metadata.video);
+    initObject[ContentType.VIDEO] = getFakeStream(metadata.video);
     mediaSourceEngine.init(initObject);
     mediaSourceEngine.setDuration(presentationDuration).then(function() {
       return appendInit(ContentType.VIDEO);

@@ -16,9 +16,13 @@
  */
 
 describe('Player', function() {
-  var Util;
+  /** @const */
+  var Util = shaka.test.Util;
+  /** @const */
+  var Feature = shakaAssets.Feature;
+
+  /** @type {!jasmine.Spy} */
   var onErrorSpy;
-  var Feature;
 
   /** @type {shakaExtern.SupportType} */
   var support;
@@ -29,7 +33,7 @@ describe('Player', function() {
   /** @type {shaka.util.EventManager} */
   var eventManager;
 
-  var shaka;
+  var compiledShaka;
 
   beforeAll(function(done) {
     video = /** @type {!HTMLVideoElement} */ (document.createElement('video'));
@@ -38,35 +42,30 @@ describe('Player', function() {
     video.muted = true;
     document.body.appendChild(video);
 
-    // Load test utils from outside the compiled library.
-    Util = window.shaka.test.Util;
-    // Load asset features from outside the compiled library.
-    Feature = window.shakaAssets.Feature;
-
-    var loaded = window.shaka.util.PublicPromise();
+    var loaded = new shaka.util.PublicPromise();
     if (getClientArg('uncompiled')) {
       // For debugging purposes, use the uncompiled library.
-      shaka = window.shaka;
+      compiledShaka = shaka;
       loaded.resolve();
     } else {
       // Load the compiled library as a module.
       // All tests in this suite will use the compiled library.
       require(['/base/dist/shaka-player.compiled.js'], function(shakaModule) {
-        shaka = shakaModule;
-        shaka.net.NetworkingEngine.registerScheme(
-            'test', window.shaka.test.TestScheme);
-        shaka.media.ManifestParser.registerParserByMime(
+        compiledShaka = shakaModule;
+        compiledShaka.net.NetworkingEngine.registerScheme(
+            'test', shaka.test.TestScheme);
+        compiledShaka.media.ManifestParser.registerParserByMime(
             'application/x-test-manifest',
-            window.shaka.test.TestScheme.ManifestParser);
+            shaka.test.TestScheme.ManifestParser);
 
         loaded.resolve();
       });
     }
 
     loaded.then(function() {
-      return window.shaka.test.TestScheme.createManifests(shaka, '_compiled');
+      return shaka.test.TestScheme.createManifests(compiledShaka, '_compiled');
     }).then(function() {
-      return shaka.Player.probeSupport();
+      return compiledShaka.Player.probeSupport();
     }).then(function(supportResults) {
       support = supportResults;
       done();
@@ -74,21 +73,26 @@ describe('Player', function() {
   });
 
   beforeEach(function() {
-    player = new shaka.Player(video);
+    player = new compiledShaka.Player(video);
 
     // Grab event manager from the uncompiled library:
-    eventManager = new window.shaka.util.EventManager();
+    eventManager = new shaka.util.EventManager();
 
     onErrorSpy = jasmine.createSpy('onError');
     onErrorSpy.and.callFake(function(event) { fail(event.detail); });
-    eventManager.listen(player, 'error', onErrorSpy);
+    eventManager.listen(player, 'error', Util.spyFunc(onErrorSpy));
   });
 
   afterEach(function(done) {
     Promise.all([
       eventManager.destroy(),
       player.destroy()
-    ]).catch(fail).then(done);
+    ]).then(function() {
+      // Work-around: allow the Tizen media pipeline to cool down.
+      // Without this, Tizen's pipeline seems to hang in subsequent tests.
+      // TODO: file a bug on Tizen
+      return Util.delay(0.1);
+    }).catch(fail).then(done);
   });
 
   afterAll(function() {
@@ -122,10 +126,9 @@ describe('Player', function() {
           switchHistory: jasmine.arrayContaining([{
             timestamp: jasmine.any(Number),
             id: jasmine.any(Number),
-            // Include 'window' to use uncompiled version version of the
-            // library.
-            type: window.shaka.util.ManifestParserUtils.ContentType.VIDEO,
-            fromAdaptation: true
+            type: 'variant',
+            fromAdaptation: true,
+            bandwidth: 0
           }]),
 
           stateHistory: jasmine.arrayContaining([{
@@ -144,27 +147,33 @@ describe('Player', function() {
     // to a crash in TextEngine.  This validates that we do not trigger this
     // behavior when changing visibility of text.
     it('does not cause cues to be null', function(done) {
-      var textTrack = video.textTracks[0];
       player.load('test:sintel_compiled').then(function() {
         video.play();
         return waitUntilPlayheadReaches(video, 1, 10);
       }).then(function() {
-        // This should not be null initially.
-        expect(textTrack.cues).not.toBe(null);
+        // This TextTrack was created as part of load() when we set up the
+        // TextDisplayer.
+        var textTrack = video.textTracks[0];
+        expect(textTrack).not.toBe(null);
 
-        player.setTextTrackVisibility(true);
-        // This should definitely not be null when visible.
-        expect(textTrack.cues).not.toBe(null);
+        if (textTrack) {
+          // This should not be null initially.
+          expect(textTrack.cues).not.toBe(null);
 
-        player.setTextTrackVisibility(false);
-        // This should not transition to null when invisible.
-        expect(textTrack.cues).not.toBe(null);
+          player.setTextTrackVisibility(true);
+          // This should definitely not be null when visible.
+          expect(textTrack.cues).not.toBe(null);
+
+          player.setTextTrackVisibility(false);
+          // This should not transition to null when invisible.
+          expect(textTrack.cues).not.toBe(null);
+        }
       }).catch(fail).then(done);
     });
   });
 
   describe('plays', function() {
-    it('while external text tracks', function(done) {
+    it('with external text tracks', function(done) {
       player.load('test:sintel_no_text_compiled').then(function() {
         // For some reason, using path-absolute URLs (i.e. without the hostname)
         // like this doesn't work on Safari.  So manually resolve the URL.
@@ -196,7 +205,10 @@ describe('Player', function() {
         // The Period changes at 10 seconds.  Assert that we are in the previous
         // Period and have buffered into the next one.
         expect(video.currentTime).toBeLessThan(9);
-        expect(video.buffered.end(0)).toBeGreaterThan(11);
+        // The two periods might not be in a single contiguous buffer, so don't
+        // check end(0).  Gap-jumping will deal with any discontinuities.
+        var bufferEnd = video.buffered.end(video.buffered.length - 1);
+        expect(bufferEnd).toBeGreaterThan(11);
 
         // Change to a different language; this should clear the buffers and
         // cause a Period transition again.
@@ -210,7 +222,7 @@ describe('Player', function() {
       }).catch(fail).then(done);
     });
 
-    window.shakaAssets.testAssets.forEach(function(asset) {
+    shakaAssets.testAssets.forEach(function(asset) {
       if (asset.disabled) return;
 
       var testName =
@@ -345,7 +357,7 @@ describe('Player', function() {
    * @param {shakaExtern.Request} request
    */
   function addLicenseRequestHeaders(headers, requestType, request) {
-    var RequestType = shaka.net.NetworkingEngine.RequestType;
+    var RequestType = compiledShaka.net.NetworkingEngine.RequestType;
     if (requestType != RequestType.LICENSE) return;
 
     // Add these to the existing headers.  Do not clobber them!

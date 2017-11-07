@@ -27,6 +27,16 @@ requirement: {
   whitelist_regexp: 'test/*'
 }
 
+# Ban accessing members of unknown types.
+requirement: {
+  type: CUSTOM
+  java_class: 'com.google.javascript.jscomp.ConformanceRules$'
+              'BanUnknownTypedClassPropsReferences'
+  error_message: 'Using properties of unknown types is not allowed: add an '
+                 'explicit type to the variable.'
+  whitelist_regexp: 'demo/*'
+}
+
 requirement: {
   type: BANNED_CODE_PATTERN
   value: 'function template() { throw new Error(); }'
@@ -54,6 +64,15 @@ requirement: {
   value: 'Console.prototype.log'
   error_message: 'Using "console.log" is not allowed: '
                  'use shaka.log instead'
+}
+
+
+# Disallow Element.children.
+requirement: {
+  type: BANNED_PROPERTY
+  value: 'Element.prototype.children'
+  error_message: 'Using "Element.children" is not allowed: '
+                 'use Node.childNodes instead'
 }
 
 
@@ -110,6 +129,12 @@ requirement: {
   value: 'String.prototype.includes'
   error_message: 'ES6 String methods are not allowed '
                  'because they are not supported in IE11'
+}
+requirement: {
+  type: BANNED_PROPERTY
+  value: 'ArrayBuffer.prototype.slice'
+  error_message: 'ArrayBuffer.slice is not allowed because it '
+                 'is not supported on Tizen 2016'
 }
 requirement: {
   type: BANNED_NAME

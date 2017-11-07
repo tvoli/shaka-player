@@ -23,6 +23,16 @@ Shaka v2 has several improvements over v1, including:
   - New plugin and build system to extend Shaka
   - Cache-friendly networking
   - Simpler, mobile-friendly demo app
+  - Basic HLS support
+  - DASH trick mode support
+  - Support for jumping gaps in the timeline
+  - Additional stats and events from Player
+  - Indication of critical errors vs recoverable errors
+  - Allowing applications to render their own text tracks
+  - Making the default ABR manager more configurable
+  - Adding channel count and bandwidth info to variant tracks
+  - Xlink support in DASH
+  - New option for offline protected content without persistent licensing
 
 
 #### Shaka Plugins
@@ -84,7 +94,7 @@ function interpretContentProtection(schemeIdUri, contentProtectionElement) {
     // This is the UUID which represents Widevine.
     return [{
       'keySystem': 'com.widevine.alpha',
-      'licenseServerUrl': '//widevine-proxy.appspot.com/proxy'
+      'licenseServerUrl': '//proxy.uat.widevine.com/proxy'
     }];
   } else if (schemeIdUri.toLowerCase() ==
       'urn:uuid:9a04f079-9840-4286-ab92-e65be0885f95') {
@@ -114,7 +124,7 @@ var player = new shaka.Player(video);
 player.configure({
   drm: {
     servers: {
-      'com.widevine.alpha': '//widevine-proxy.appspot.com/proxy'
+      'com.widevine.alpha': '//proxy.uat.widevine.com/proxy'
       'com.microsoft.playready': '//playready.directtaps.net/pr/svc/rightsmanager.asmx'
     }
   }
@@ -171,7 +181,7 @@ function interpretContentProtection(schemeIdUri, contentProtectionElement) {
       'urn:uuid:edef8ba9-79d6-4ace-a3c8-27dcd51d21ed') {
     return [{
       'keySystem': 'com.widevine.alpha',
-      'licenseServerUrl': '//widevine-proxy.appspot.com/proxy',
+      'licenseServerUrl': '//proxy.uat.widevine.com/proxy',
 
       'distinctiveIdentifierRequired': true,
       'persistentStateRequired': false,
@@ -347,11 +357,8 @@ and custom AbrManagers are now provided via `player.configure()`:
 ```js
 // v2:
 var player = new shaka.Player(video);
-var customAbrManager = new MyCustomAbrManager();
 player.configure({
-  abr: {
-    manager: customAbrManager
-  }
+  abrFactory: MyCustomAbrManager
 });
 player.load(manifestUri);
 ```
@@ -536,9 +543,10 @@ player.getStats()
   bufferingTime: number  // seconds, same as v1
   switchHistory: Array of Objects  // replaces v1's streamHistory
     timestamp: number  // seconds, when the stream was selected
-    id: number  // stream ID
+    id: number  // track ID
     type: string  // 'variant' or 'text'
     fromAdaptation: boolean  // distinguishes between ABR and manual choices
+    bandwidth: ?number // track's bandwidth (null for text tracks)
   stateChange: Array of Objects
     timestamp: number  // seconds, when the state changed
     state: string  // 'buffering', 'playing', 'paused', or 'ended'

@@ -26,9 +26,10 @@
 
     <title>Shaka Player Demo</title>
 
+    <link rel="manifest" href="app_manifest.json">
     <link rel="icon" href="favicon.ico">
     <link rel="stylesheet" href="demo.css">
-    <link rel="stylesheet" href="controls.css">
+    <link rel="stylesheet" href="common/controls.css">
 
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Condensed">
@@ -36,15 +37,15 @@
 
     <script src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
     <script src="load.js"></script>
-    <script src="assets.js"></script>
-    <script src="demo_utils.js"></script>
     <script src="main.js"></script>
     <script src="asset_section.js"></script>
     <script src="configuration_section.js"></script>
     <script src="info_section.js"></script>
     <script src="log_section.js"></script>
     <script src="offline_section.js"></script>
-    <script src="controls.js"></script>
+    <script src="common/assets.js"></script>
+    <script src="common/demo_utils.js"></script>
+    <script src="common/controls.js"></script>
   </head>
   <body>
     <div id="container">
@@ -169,6 +170,15 @@
             <option value="vv">Very Verbose</option>
           </select>
         </div>
+        <div>
+          <label for="drmSettingsVideoRobustness">Video Robustness:</label>
+          <input id="drmSettingsVideoRobustness" type="text" class="flex-grow" list="robustnessSuggestions">
+        </div>
+        <div>
+          <label for="drmSettingsAudioRobustness">Audio Robustness:</label>
+          <input id="drmSettingsAudioRobustness" type="text" class="flex-grow" list="robustnessSuggestions">
+        </div>
+	<datalist id="robustnessSuggestions"></datalist>
       </details>
 
       <details class="input">
@@ -207,7 +217,8 @@
       <details id="offlineSection" class="input">
         <summary>Offline</summary>
         <div>
-          <button id="storeDelete">Store</button>
+          <button id="storeDeleteButton">Store</button>
+          <span id="storeDeleteHelpText"></span>
         </div>
         <div id="progressDiv">
           <span class="label">Progress:</span>

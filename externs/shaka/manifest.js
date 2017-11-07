@@ -302,7 +302,12 @@ shakaExtern.GetSegmentReferenceFunction;
  *   primary: boolean,
  *   trickModeVideo: ?shakaExtern.Stream,
  *   containsEmsgBoxes: boolean,
+<<<<<<< HEAD
  *   roles: !Array.<string>
+=======
+ *   roles: !Array.<string>,
+ *   channelsCount: ?number
+>>>>>>> v2.2.5_google
  * }}
  *
  * @description
@@ -393,6 +398,11 @@ shakaExtern.GetSegmentReferenceFunction;
  * @property {!Array.<string>} roles
  *   The roles of the stream as they appear on the manifest,
  *   e.g. 'main', 'caption', or 'commentary'.
+<<<<<<< HEAD
+=======
+ * @property {?number} channelsCount
+ *   The channel count information for the audio stream.
+>>>>>>> v2.2.5_google
  * @exportDoc
  */
 shakaExtern.Stream;

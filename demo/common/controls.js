@@ -187,6 +187,44 @@ ShakaControls.prototype.init = function(castProxy, onError, notifyCastStatus) {
 
   this.castProxy_.addEventListener(
       'caststatuschanged', this.onCastStatusChange_.bind(this));
+
+  var screenOrientation = this.getScreenOrientation_();
+  if (screenOrientation) {
+    screenOrientation.addEventListener(
+        'change', this.onScreenRotation_.bind(this));
+  }
+};
+
+
+/**
+ * When mobile device is rotated to landscape layout, and the video is loaded,
+ * the demo app goes into fullscreen.
+ * Exit fullscreen when the device is rotated to portrait layout.
+ * @private
+ */
+ShakaControls.prototype.onScreenRotation_ = function() {
+  var orientation = this.getScreenOrientation_();
+  if (!this.video_ || this.video_.readyState == 0 || !orientation ||
+      this.castProxy_.isCasting()) return;
+  if (orientation.type.indexOf('landscape') >= 0 &&
+      !document.fullscreenElement) {
+    this.videoContainer_.requestFullscreen();
+  } else if (orientation.type.indexOf('portrait') >= 0 &&
+      document.fullscreenElement) {
+    document.exitFullscreen();
+  }
+};
+
+
+/**
+ * Get screen orientation.
+ * Screen Orientation is implemented with a prefix for some browsers.
+ * https://developer.mozilla.org/en-US/docs/Web/API/Screen/orientation
+ * @return {?ScreenOrientation}
+ * @private
+ */
+ShakaControls.prototype.getScreenOrientation_ = function() {
+  return screen.orientation || screen.mozOrientation || screen.msOrientation;
 };
 
 
@@ -570,11 +608,17 @@ ShakaControls.prototype.onCastClick_ = function() {
     this.castProxy_.suggestDisconnect();
   } else {
     this.castButton_.disabled = true;
+    // Disable the load button, to prevent the users from trying to load an
+    // asset while the cast proxy is connecting.
+    // That can lead to strange, erratic behavior.
+    document.getElementById('loadButton').disabled = true;
     this.castProxy_.cast().then(function() {
+      document.getElementById('loadButton').disabled = false;
       this.castButton_.disabled = false;
       // Success!
     }.bind(this), function(error) {
       this.castButton_.disabled = false;
+      document.getElementById('loadButton').disabled = false;
       if (error.code != shaka.util.Error.Code.CAST_CANCELED_BY_USER) {
         this.onError_(error);
       }
@@ -635,6 +679,12 @@ ShakaControls.prototype.showTrickPlay = function(show) {
 ShakaControls.prototype.isOpaque_ = function() {
   if (!this.enabled_) return false;
 
+<<<<<<< HEAD:demo/controls.js
+=======
+  // While you are casting, the UI is always opaque.
+  if (this.castProxy_ && this.castProxy_.isCasting()) return true;
+
+>>>>>>> v2.2.5_google:demo/common/controls.js
   var parentElement = this.controls_.parentElement;
   // The controls are opaque if either:
   //   1. We have explicitly made them so in JavaScript
@@ -662,6 +712,7 @@ ShakaControls.prototype.updateTimeAndSeekRange_ = function() {
   var bufferedEnd =
       bufferedLength ? this.video_.buffered.end(bufferedLength - 1) : 0;
   var seekRange = this.player_.seekRange();
+  var seekRangeSize = seekRange.end - seekRange.start;
 
   this.seekBar_.min = seekRange.start;
   this.seekBar_.max = seekRange.end;
@@ -670,7 +721,8 @@ ShakaControls.prototype.updateTimeAndSeekRange_ = function() {
     // The amount of time we are behind the live edge.
     var behindLive = Math.floor(seekRange.end - displayTime);
     displayTime = Math.max(0, behindLive);
-    var showHour = (seekRange.end - seekRange.start) >= 3600;
+
+    var showHour = seekRangeSize >= 3600;
 
     // Consider "LIVE" when less than 1 second behind the live-edge.  Always
     // show the full time string when seeking, including the leading '-';
@@ -689,6 +741,7 @@ ShakaControls.prototype.updateTimeAndSeekRange_ = function() {
     }
   } else {
     var showHour = duration >= 3600;
+
     this.currentTime_.textContent =
         this.buildTimeString_(displayTime, showHour);
 
@@ -703,22 +756,17 @@ ShakaControls.prototype.updateTimeAndSeekRange_ = function() {
   if (bufferedLength == 0) {
     gradient.push('#000 0%');
   } else {
-    // NOTE: the fallback to zero eliminates NaN.
-    var bufferStartFraction = (bufferedStart / duration) || 0;
-    var bufferEndFraction = (bufferedEnd / duration) || 0;
-    var playheadFraction = (displayTime / duration) || 0;
+    var clampedBufferStart = Math.max(bufferedStart, seekRange.start);
+    var clampedBufferEnd = Math.min(bufferedEnd, seekRange.end);
 
-    if (this.player_.isLive()) {
-      var bufferStart = Math.max(bufferedStart, seekRange.start);
-      var bufferEnd = Math.min(bufferedEnd, seekRange.end);
-      var seekRangeSize = seekRange.end - seekRange.start;
-      var bufferStartDistance = bufferStart - seekRange.start;
-      var bufferEndDistance = bufferEnd - seekRange.start;
-      var playheadDistance = displayTime - seekRange.start;
-      bufferStartFraction = (bufferStartDistance / seekRangeSize) || 0;
-      bufferEndFraction = (bufferEndDistance / seekRangeSize) || 0;
-      playheadFraction = (playheadDistance / seekRangeSize) || 0;
-    }
+    var bufferStartDistance = clampedBufferStart - seekRange.start;
+    var bufferEndDistance = clampedBufferEnd - seekRange.start;
+    var playheadDistance = displayTime - seekRange.start;
+
+    // NOTE: the fallback to zero eliminates NaN.
+    var bufferStartFraction = (bufferStartDistance / seekRangeSize) || 0;
+    var bufferEndFraction = (bufferEndDistance / seekRangeSize) || 0;
+    var playheadFraction = (playheadDistance / seekRangeSize) || 0;
 
     gradient.push('#000 ' + (bufferStartFraction * 100) + '%');
     gradient.push('#ccc ' + (bufferStartFraction * 100) + '%');

@@ -16,40 +16,59 @@
  */
 
 describe('StreamingEngine', function() {
+  /** @const */
+  var ContentType = shaka.util.ManifestParserUtils.ContentType;
+  /** @const */
+  var Util = shaka.test.Util;
+
   var metadata;
   var generators;
 
+  /** @type {!shaka.util.EventManager} */
   var eventManager;
+  /** @type {!HTMLVideoElement} */
   var video;
   var timeline;
 
+  /** @type {!shaka.media.Playhead} */
   var playhead;
+  /** @type {shakaExtern.StreamingConfiguration} */
   var config;
-  var onBuffering;
-
-  var mediaSource;
-  var mediaSourceEngine;
 
   var netEngine;
+  /** @type {!MediaSource} */
+  var mediaSource;
+  /** @type {!shaka.media.MediaSourceEngine} */
+  var mediaSourceEngine;
+  /** @type {!shaka.media.StreamingEngine} */
+  var streamingEngine;
 
-  var audioStream1;
-  var videoStream1;
-  var audioStream2;
-  var videoStream2;
 
+  /** @type {shakaExtern.Variant} */
+  var variant1;
+  /** @type {shakaExtern.Variant} */
+  var variant2;
+
+  /** @type {shakaExtern.Manifest} */
   var manifest;
 
+  /** @type {!jasmine.Spy} */
+  var onBuffering;
+  /** @type {!jasmine.Spy} */
   var onChooseStreams;
+  /** @type {!jasmine.Spy} */
   var onCanSwitch;
+  /** @type {!jasmine.Spy} */
   var onError;
+  /** @type {!jasmine.Spy} */
   var onEvent;
+  /** @type {!jasmine.Spy} */
   var onInitialStreamsSetup;
+  /** @type {!jasmine.Spy} */
   var onStartupComplete;
-  var streamingEngine;
-  var ContentType = shaka.util.ManifestParserUtils.ContentType;
 
   beforeAll(function() {
-    video = /** @type {HTMLVideoElement} */ (document.createElement('video'));
+    video = /** @type {!HTMLVideoElement} */ (document.createElement('video'));
     video.width = 600;
     video.height = 400;
     video.muted = true;
@@ -65,7 +84,7 @@ describe('StreamingEngine', function() {
       rebufferingGoal: 2,
       bufferingGoal: 5,
       retryParameters: shaka.net.NetworkingEngine.defaultRetryParameters(),
-      infiniteRetriesForLiveStreams: true,
+      failureCallback: function() {},
       bufferBehind: 15,
       ignoreTextStreamFailures: false,
       useRelativeCueTimestamps: false,
@@ -82,7 +101,6 @@ describe('StreamingEngine', function() {
     onError.and.callFake(fail);
     onEvent = jasmine.createSpy('onEvent');
 
-
     eventManager = new shaka.util.EventManager();
     setupMediaSource().catch(fail).then(done);
   });
@@ -96,6 +114,11 @@ describe('StreamingEngine', function() {
         playhead.destroy(),
         eventManager.destroy()
       ]);
+    }).then(function() {
+      // Work-around: allow the Tizen media pipeline to cool down.
+      // Without this, Tizen's pipeline seems to hang in subsequent tests.
+      // TODO: file a bug on Tizen
+      return Util.delay(0.1);
     }).catch(fail).then(done);
   });
 
@@ -266,7 +289,7 @@ describe('StreamingEngine', function() {
         config,
         null /* startTime */,
         onSeek,
-        onEvent);
+        shaka.test.Util.spyFunc(onEvent));
   }
 
   function setupManifest(
@@ -276,7 +299,8 @@ describe('StreamingEngine', function() {
         { audio: metadata.audio.segmentDuration,
           video: metadata.video.segmentDuration });
 
-    manifest.presentationTimeline = timeline;
+    manifest.presentationTimeline =
+        /** @type {!shaka.media.PresentationTimeline} */ (timeline);
     manifest.minBufferTime = 2;
 
     // Create InitSegmentReferences.
@@ -290,10 +314,8 @@ describe('StreamingEngine', function() {
     manifest.periods[1].variants[0].video.initSegmentReference =
         new shaka.media.InitSegmentReference(makeUris('2_video_init'), 0, null);
 
-    audioStream1 = manifest.periods[0].variants[0].audio;
-    videoStream1 = manifest.periods[0].variants[0].video;
-    audioStream2 = manifest.periods[1].variants[0].audio;
-    videoStream2 = manifest.periods[1].variants[0].video;
+    variant1 = manifest.periods[0].variants[0];
+    variant2 = manifest.periods[1].variants[0];
   }
 
   function createStreamingEngine() {
@@ -301,14 +323,14 @@ describe('StreamingEngine', function() {
       playhead: playhead,
       mediaSourceEngine: mediaSourceEngine,
       netEngine: /** @type {!shaka.net.NetworkingEngine} */(netEngine),
-      onChooseStreams: onChooseStreams,
-      onCanSwitch: onCanSwitch,
-      onError: onError,
-      onEvent: onEvent,
+      onChooseStreams: Util.spyFunc(onChooseStreams),
+      onCanSwitch: Util.spyFunc(onCanSwitch),
+      onError: Util.spyFunc(onError),
+      onEvent: Util.spyFunc(onEvent),
       onManifestUpdate: function() {},
       onSegmentAppended: playhead.onSegmentAppended.bind(playhead),
-      onInitialStreamsSetup: onInitialStreamsSetup,
-      onStartupComplete: onStartupComplete
+      onInitialStreamsSetup: Util.spyFunc(onInitialStreamsSetup),
+      onStartupComplete: Util.spyFunc(onStartupComplete)
     };
     streamingEngine = new shaka.media.StreamingEngine(
         /** @type {shakaExtern.Manifest} */(manifest), playerInterface);
@@ -334,7 +356,10 @@ describe('StreamingEngine', function() {
 
       // Let's go!
       onChooseStreams.and.callFake(defaultOnChooseStreams);
-      streamingEngine.init();
+      streamingEngine.init().catch(function(error) {
+        fail(error);
+        done();
+      });
     });
 
     it('plays at high playback rates', function(done) {
@@ -361,7 +386,10 @@ describe('StreamingEngine', function() {
 
       // Let's go!
       onChooseStreams.and.callFake(defaultOnChooseStreams);
-      streamingEngine.init();
+      streamingEngine.init().catch(function(error) {
+        fail(error);
+        done();
+      });
     });
 
     it('can handle buffered seeks', function(done) {
@@ -387,7 +415,10 @@ describe('StreamingEngine', function() {
 
       // Let's go!
       onChooseStreams.and.callFake(defaultOnChooseStreams);
-      streamingEngine.init();
+      streamingEngine.init().catch(function(error) {
+        fail(error);
+        done();
+      });
     });
 
     it('can handle unbuffered seeks', function(done) {
@@ -413,7 +444,10 @@ describe('StreamingEngine', function() {
 
       // Let's go!
       onChooseStreams.and.callFake(defaultOnChooseStreams);
-      streamingEngine.init();
+      streamingEngine.init().catch(function(error) {
+        fail(error);
+        done();
+      });
     });
   });
 
@@ -455,7 +489,10 @@ describe('StreamingEngine', function() {
 
       // Let's go!
       onChooseStreams.and.callFake(defaultOnChooseStreams);
-      streamingEngine.init();
+      streamingEngine.init().catch(function(error) {
+        fail(error);
+        done();
+      });
     });
 
     it('can handle seeks ahead of availability window',
@@ -487,7 +524,10 @@ describe('StreamingEngine', function() {
 
           // Let's go!
           onChooseStreams.and.callFake(defaultOnChooseStreams);
-          streamingEngine.init();
+          streamingEngine.init().catch(function(error) {
+            fail(error);
+            done();
+          });
         });
 
     it('can handle seeks behind availability window', function(done) {
@@ -534,7 +574,10 @@ describe('StreamingEngine', function() {
 
       // Let's go!
       onChooseStreams.and.callFake(defaultOnChooseStreams);
-      streamingEngine.init();
+      streamingEngine.init().catch(function(error) {
+        fail(error);
+        done();
+      });
     });
   });
 
@@ -554,12 +597,10 @@ describe('StreamingEngine', function() {
 
             // Let's go!
             onChooseStreams.and.callFake(defaultOnChooseStreams);
-            streamingEngine.init();
-
+            return streamingEngine.init();
+          }).then(function() {
             return waitForTime(5);
-          })
-          .catch(fail)
-          .then(done);
+          }).catch(fail).then(done);
     });
 
     it('jumps large gaps at the beginning', function(done) {
@@ -576,12 +617,10 @@ describe('StreamingEngine', function() {
 
             // Let's go!
             onChooseStreams.and.callFake(defaultOnChooseStreams);
-            streamingEngine.init();
-
+            return streamingEngine.init();
+          }).then(function() {
             return waitForTime(8);
-          })
-          .catch(fail)
-          .then(done);
+          }).catch(fail).then(done);
     });
 
     it('jumps small gaps in the middle', function(done) {
@@ -595,17 +634,14 @@ describe('StreamingEngine', function() {
 
             // Let's go!
             onChooseStreams.and.callFake(defaultOnChooseStreams);
-            streamingEngine.init();
-
+            return streamingEngine.init();
+          }).then(function() {
             return waitForTime(23);
-          })
-          .then(function() {
+          }).then(function() {
             // Should be close enough to still have the gap buffered.
             expect(video.buffered.length).toBe(2);
             expect(onEvent).not.toHaveBeenCalled();
-          })
-          .catch(fail)
-          .then(done);
+          }).catch(fail).then(done);
     });
 
     it('jumps large gaps in the middle', function(done) {
@@ -619,17 +655,14 @@ describe('StreamingEngine', function() {
 
             // Let's go!
             onChooseStreams.and.callFake(defaultOnChooseStreams);
-            streamingEngine.init();
-
+            return streamingEngine.init();
+          }).then(function() {
             return waitForTime(23);
-          })
-          .then(function() {
+          }).then(function() {
             // Should be close enough to still have the gap buffered.
             expect(video.buffered.length).toBe(2);
             expect(onEvent).toHaveBeenCalled();
-          })
-          .catch(fail)
-          .then(done);
+          }).catch(fail).then(done);
     });
 
     it('won\'t jump large gaps with preventDefault()', function(done) {
@@ -654,9 +687,8 @@ describe('StreamingEngine', function() {
 
             // Let's go!
             onChooseStreams.and.callFake(defaultOnChooseStreams);
-            streamingEngine.init();
-          })
-          .catch(done.fail);
+            return streamingEngine.init();
+          }).catch(done.fail);
     });
 
 
@@ -688,8 +720,7 @@ describe('StreamingEngine', function() {
               video: metadata.video.segmentDuration });
 
         manifest = setupGappyManifest(gapAtStart, dropSegment);
-        audioStream1 = manifest.periods[0].variants[0].audio;
-        videoStream1 = manifest.periods[0].variants[0].video;
+        variant1 = manifest.periods[0].variants[0];
 
         setupPlayhead();
         createStreamingEngine();
@@ -811,17 +842,10 @@ describe('StreamingEngine', function() {
    * @return {!Object.<string, !shakaExtern.Stream>}
    */
   function defaultOnChooseStreams(period) {
-    // Create empty object first and initialize the fields through
-    // [] to allow field names to be expressions.
-    var ret = {};
     if (period == manifest.periods[0]) {
-      ret[ContentType.AUDIO] = audioStream1;
-      ret[ContentType.VIDEO] = videoStream1;
-      return ret;
+      return { variant: variant1, text: null };
     } else if (period == manifest.periods[1]) {
-      ret[ContentType.AUDIO] = audioStream2;
-      ret[ContentType.VIDEO] = videoStream2;
-      return ret;
+      return { variant: variant2, text: null };
     } else {
       throw new Error();
     }

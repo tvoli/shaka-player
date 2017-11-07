@@ -16,14 +16,15 @@
  */
 
 describe('DashParser SegmentBase', function() {
-  var Dash;
-  var fakeNetEngine;
-  var parser;
-  var playerInterface;
+  /** @const */
+  var Dash = shaka.test.Dash;
 
-  beforeAll(function() {
-    Dash = shaka.test.Dash;
-  });
+  /** @type {!shaka.test.FakeNetworkingEngine} */
+  var fakeNetEngine;
+  /** @type {!shaka.dash.DashParser} */
+  var parser;
+  /** @type {shakaExtern.ManifestParser.PlayerInterface} */
+  var playerInterface;
 
   beforeEach(function() {
     fakeNetEngine = new shaka.test.FakeNetworkingEngine();
@@ -31,7 +32,8 @@ describe('DashParser SegmentBase', function() {
 
     playerInterface = {
       networkingEngine: fakeNetEngine,
-      filterPeriod: function() {},
+      filterNewPeriod: function() {},
+      filterAllPeriods: function() {},
       onTimelineRegionAdded: fail,  // Should not have any EventStream elements.
       onEvent: fail,
       onError: fail
@@ -181,7 +183,7 @@ describe('DashParser SegmentBase', function() {
       '      <Initialization sourceURL="init.mp4" range="201-300" />',
       '    </SegmentBase>',
       '    <AdaptationSet mimeType="video/mp4">',
-      '      <SegmentBase presentationTimeOffset="10">',
+      '      <SegmentBase presentationTimeOffset="90000">',
       '        <Initialization sourceURL="init.mp4" range="201-300" />',
       '      </SegmentBase>',
       '      <Representation bandwidth="1">',
@@ -225,7 +227,8 @@ describe('DashParser SegmentBase', function() {
       '        <Initialization sourceURL="special.mp4" />',
       '      </SegmentBase>',
       '      <Representation bandwidth="1">',
-      '        <SegmentBase indexRange="30-900" presentationTimeOffset="20" />',
+      '        <SegmentBase indexRange="30-900" ',
+      '                     presentationTimeOffset="200" />',
       '      </Representation>',
       '    </AdaptationSet>',
       '  </Period>',

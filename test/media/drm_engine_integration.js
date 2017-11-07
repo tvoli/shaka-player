@@ -16,40 +16,63 @@
  */
 
 describe('DrmEngine', function() {
-  var support = {};
-
-  var video;
-  var mediaSource;
-  var manifest;
-
-  var onErrorSpy;
-  var onKeyStatusSpy;
-  var onExpirationSpy;
-  var drmEngine;
-  var mediaSourceEngine;
-  var networkingEngine;
-  var eventManager;
-
-  var videoInitSegment;
-  var audioInitSegment;
-  var videoSegment;
-  var audioSegment;
+  /** @const */
+  var ContentType = shaka.util.ManifestParserUtils.ContentType;
 
   // These come from Axinom and use the Axinom license server.
   // TODO: Do not rely on third-party services long-term.
+  /** @const */
   var videoInitSegmentUri = '/base/test/test/assets/multidrm-video-init.mp4';
+  /** @const */
   var videoSegmentUri = '/base/test/test/assets/multidrm-video-segment.mp4';
+  /** @const */
   var audioInitSegmentUri = '/base/test/test/assets/multidrm-audio-init.mp4';
+  /** @const */
   var audioSegmentUri = '/base/test/test/assets/multidrm-audio-segment.mp4';
 
-  var ContentType = shaka.util.ManifestParserUtils.ContentType;
+  /** @type {!Object.<string, ?shakaExtern.DrmSupportType>} */
+  var support = {};
+
+  /** @type {!HTMLVideoElement} */
+  var video;
+  /** @type {!MediaSource} */
+  var mediaSource;
+  /** @type {shakaExtern.Manifest} */
+  var manifest;
+
+  /** @type {!jasmine.Spy} */
+  var onErrorSpy;
+  /** @type {!jasmine.Spy} */
+  var onKeyStatusSpy;
+  /** @type {!jasmine.Spy} */
+  var onExpirationSpy;
+  /** @type {!jasmine.Spy} */
+  var onEventSpy;
+
+  /** @type {!shaka.media.DrmEngine} */
+  var drmEngine;
+  /** @type {!shaka.media.MediaSourceEngine} */
+  var mediaSourceEngine;
+  /** @type {!shaka.net.NetworkingEngine} */
+  var networkingEngine;
+  /** @type {!shaka.util.EventManager} */
+  var eventManager;
+
+  /** @type {!ArrayBuffer} */
+  var videoInitSegment;
+  /** @type {!ArrayBuffer} */
+  var audioInitSegment;
+  /** @type {!ArrayBuffer} */
+  var videoSegment;
+  /** @type {!ArrayBuffer} */
+  var audioSegment;
 
   beforeAll(function(done) {
     var supportTest = shaka.media.DrmEngine.probeSupport()
         .then(function(result) { support = result; })
         .catch(fail);
 
-    video = /** @type {HTMLVideoElement} */ (document.createElement('video'));
+    video = /** @type {!HTMLVideoElement} */ (document.createElement('video'));
     video.width = 600;
     video.height = 400;
     video.muted = true;
@@ -73,6 +96,7 @@ describe('DrmEngine', function() {
     onErrorSpy = jasmine.createSpy('onError');
     onKeyStatusSpy = jasmine.createSpy('onKeyStatus');
     onExpirationSpy = jasmine.createSpy('onExpirationUpdated');
+    onEventSpy = jasmine.createSpy('onEvent');
 
     mediaSource = new MediaSource();
     video.src = window.URL.createObjectURL(mediaSource);
@@ -90,8 +114,15 @@ describe('DrmEngine', function() {
       ].join('');
     });
 
-    drmEngine = new shaka.media.DrmEngine(
-        networkingEngine, onErrorSpy, onKeyStatusSpy, onExpirationSpy);
+    var playerInterface = {
+      netEngine: networkingEngine,
+      onError: shaka.test.Util.spyFunc(onErrorSpy),
+      onKeyStatus: shaka.test.Util.spyFunc(onKeyStatusSpy),
+      onExpirationUpdated: shaka.test.Util.spyFunc(onExpirationSpy),
+      onEvent: shaka.test.Util.spyFunc(onEventSpy)
+    };
+
+    drmEngine = new shaka.media.DrmEngine(playerInterface);
     var config = {
       retryParameters: shaka.net.NetworkingEngine.defaultRetryParameters(),
       clearKeys: {},
@@ -115,6 +146,9 @@ describe('DrmEngine', function() {
           .addAudio(2).mime('audio/mp4', 'mp4a.40.2').encrypted(true)
       .build();
 
+    var videoStream = manifest.periods[0].variants[0].video;
+    var audioStream = manifest.periods[0].variants[0].audio;
+
     eventManager = new shaka.util.EventManager();
 
     eventManager.listen(mediaSource, 'sourceopen', function() {
@@ -125,8 +159,8 @@ describe('DrmEngine', function() {
       // Create empty object first and initialize the fields through
       // [] to allow field names to be expressions.
       var expectedObject = {};
-      expectedObject[ContentType.AUDIO] = 'audio/mp4; codecs="mp4a.40.2"';
-      expectedObject[ContentType.VIDEO] = 'video/mp4; codecs="avc1.640015"';
+      expectedObject[ContentType.AUDIO] = audioStream;
+      expectedObject[ContentType.VIDEO] = videoStream;
       mediaSourceEngine.init(expectedObject);
       done();
     });
@@ -164,7 +198,7 @@ describe('DrmEngine', function() {
             requestComplete = originalRequest.apply(this, arguments);
             return requestComplete;
           });
-          networkingEngine.request = requestSpy;
+          networkingEngine.request = shaka.test.Util.spyFunc(requestSpy);
 
           var encryptedEventSeen = new shaka.util.PublicPromise();
           eventManager.listen(video, 'encrypted', function() {
@@ -222,7 +256,7 @@ describe('DrmEngine', function() {
           }).then(function() {
             var call = onKeyStatusSpy.calls.mostRecent();
             if (call) {
-              var map = call.args[0];
+              var map = /** @type {!Object} */ (call.args[0]);
               expect(Object.keys(map).length).not.toBe(0);
               for (var k in map) {
                 expect(map[k]).toBe('usable');
