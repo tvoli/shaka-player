@@ -12,6 +12,10 @@
     {
       "name": "Anna Rybkina",
       "email": "anna.rybkina@magine.com"
+    },
+    {
+      "name": "Johan Wedfelt",
+      "email": "johan.wedfelt@magine.com"
     }
   ],
   "devDependencies": {
