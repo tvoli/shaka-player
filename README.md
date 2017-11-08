@@ -153,3 +153,8 @@ contributors to follow.
 
 For general help and before filing any bugs, please read the
 [FAQ](docs/tutorials/faq.md).
+
+
+## Magine info ##
+
+For building/compiling, it currently seems like older versions of node is viable, like version 6.X
