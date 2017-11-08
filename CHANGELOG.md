@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 ## 2.2.5 (2017-11-02)
 
 New features:
@@ -211,7 +209,6 @@ Bugfixes:
   - Fix cast proxying of isAudioOnly and getMediaElement
 
 
->>>>>>> v2.2.5_google
 ## 2.1.7 (2017-08-14)
 
 Bugfixes:
@@ -408,8 +405,6 @@ Docs:
   - Add notes on adaptation to upgrade guide
 
 
-<<<<<<< HEAD
-=======
 ## 2.0.9 (2017-05-10)
 
 Backported bugfixes from v2.1.x:
@@ -423,7 +418,6 @@ Backported bugfixes from v2.1.x:
     - https://github.com/google/shaka-player/issues/784
 
 
->>>>>>> v2.2.5_google
 ## 2.1.1 (2017-05-10)
 
 New features:

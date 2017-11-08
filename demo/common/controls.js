@@ -679,12 +679,9 @@ ShakaControls.prototype.showTrickPlay = function(show) {
 ShakaControls.prototype.isOpaque_ = function() {
   if (!this.enabled_) return false;
 
-<<<<<<< HEAD:demo/controls.js
-=======
   // While you are casting, the UI is always opaque.
   if (this.castProxy_ && this.castProxy_.isCasting()) return true;
 
->>>>>>> v2.2.5_google:demo/common/controls.js
   var parentElement = this.controls_.parentElement;
   // The controls are opaque if either:
   //   1. We have explicitly made them so in JavaScript

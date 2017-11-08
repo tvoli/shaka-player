@@ -16,11 +16,8 @@
 
 """Runs unit and integrations tests on the library."""
 
-<<<<<<< HEAD
-=======
 import argparse
 import json
->>>>>>> v2.2.5_google
 import logging
 import platform
 
@@ -29,85 +26,6 @@ import gendeps
 import shakaBuildHelpers
 
 
-<<<<<<< HEAD
-def run_tests_single(args):
-  """Runs all the karma tests."""
-  karma_path = shakaBuildHelpers.get_node_binary_path('karma')
-  cmd = [karma_path, 'start']
-
-  if shakaBuildHelpers.is_linux() and '--use-xvfb' in args:
-    cmd = ['xvfb-run', '--auto-servernum'] + cmd
-
-  # Get the browsers supported on the local system.
-  browsers = _get_browsers()
-  if not browsers:
-    logging.error('Unrecognized system: %s', platform.uname()[0])
-    return 1
-
-  logging.info('Starting tests...')
-  if not args:
-    # Run tests in all available browsers.
-    logging.warning('Running with platform default: --browsers %s', browsers)
-    cmd_line = cmd + ['--browsers', browsers]
-    return shakaBuildHelpers.execute_get_code(cmd_line)
-  else:
-    # Run with command-line arguments from the user.
-    if '--browsers' not in args:
-      logging.warning('No --browsers specified.')
-      logging.warning('In this mode, browsers must be manually connected to '
-                      'karma.')
-    cmd_line = cmd + args
-    return shakaBuildHelpers.execute_get_code(cmd_line)
-
-
-def run_tests_multiple(args):
-  """Runs multiple iterations of the tests when --runs is set."""
-  index = args.index('--runs') + 1
-  if index == len(args) or args[index].startswith('--'):
-    logging.error('Argument Error: --runs requires a value.')
-    return 1
-  try:
-    runs = int(args[index])
-  except ValueError:
-    logging.error('Argument Error: --runs value must be an integer.')
-    return 1
-  if runs <= 0:
-    logging.error('Argument Error: --runs value must be greater than 0.')
-    return 1
-
-  results = []
-  logging.info('Running the tests %d times.', runs)
-  for _ in range(runs):
-    results.append(run_tests_single(args))
-
-  logging.info('\nAll runs completed.')
-  logging.info('%d passed out of %d total runs.', results.count(0),
-               len(results))
-  logging.info('Results (exit code): %r', results)
-  return all(result == 0 for result in results)
-
-
-def run_tests(args):
-  # Update node modules if needed.
-  if not shakaBuildHelpers.update_node_modules():
-    return 1
-
-  # Generate dependencies and compile library.
-  # This is required for the tests.
-  if gendeps.gen_deps([]) != 0:
-    return 1
-
-  build_args = []
-  if '--force' in args:
-    build_args.append('--force')
-    args.remove('--force')
-
-  if '--no-build' in args:
-    args.remove('--no-build')
-  else:
-    if build.main(build_args) != 0:
-      return 1
-=======
 class _HandleMixedListsAction(argparse.Action):
   '''Action to handle comma-separated and space-separated lists.
 
@@ -132,7 +50,6 @@ def _IntGreaterThanZero(x):
   if i <= 0:
     raise argparse.ArgumentTypeError('%s is not greater than zero' % x)
   return i
->>>>>>> v2.2.5_google
 
 
 def _GetDefaultBrowsers():

@@ -182,24 +182,17 @@ shakaExtern.BufferedInfo;
  *   frameRate: ?number,
  *   mimeType: ?string,
  *   codecs: ?string,
-<<<<<<< HEAD
  *   sar: ?number,
  *   par: ?number,
-=======
->>>>>>> v2.2.5_google
  *   audioCodec: ?string,
  *   videoCodec: ?string,
  *   primary: boolean,
  *   roles: !Array.<string>,
  *   videoId: ?number,
-<<<<<<< HEAD
- *   audioId: ?number
-=======
  *   audioId: ?number,
  *   channelsCount: ?number,
  *   audioBandwidth: ?number,
  *   videoBandwidth: ?number
->>>>>>> v2.2.5_google
  * }}
  *
  * @description
@@ -237,7 +230,6 @@ shakaExtern.BufferedInfo;
  *   The MIME type of the content provided in the manifest.
  * @property {?string} codecs
  *   The audio/video codecs string provided in the manifest, if present.
-<<<<<<< HEAD
  * @property {?number} sar
  *   The video aspect ratio provided in the manifest, if present.
  * @property {?number} par
@@ -245,11 +237,6 @@ shakaExtern.BufferedInfo;
  * @property {?string} audioCodec
  *   The audio codecs string provided in the manifest, if present.
   * @property {?string} videoCodec
-=======
- * @property {?string} audioCodec
- *   The audio codecs string provided in the manifest, if present.
- * @property {?string} videoCodec
->>>>>>> v2.2.5_google
  *   The video codecs string provided in the manifest, if present.
  * @property {boolean} primary
  *   True indicates that this in the primary language for the content.
@@ -263,15 +250,12 @@ shakaExtern.BufferedInfo;
  *   (only for variant tracks) The video stream id.
  * @property {?number} audioId
  *   (only for variant tracks) The audio stream id.
-<<<<<<< HEAD
-=======
  * @property {?number} channelsCount
  *   The count of the audio track channels.
  * @property {?number} audioBandwidth
  *   (only for variant tracks) The audio stream's bandwidth if known.
  * @property {?number} videoBandwidth
  *   (only for variant tracks) The video stream's bandwidth if known.
->>>>>>> v2.2.5_google
  * @exportDoc
  */
 shakaExtern.Track;
@@ -573,11 +557,7 @@ shakaExtern.ManifestConfiguration;
 /**
  * @typedef {{
  *   retryParameters: shakaExtern.RetryParameters,
-<<<<<<< HEAD
- *   infiniteRetriesForLiveStreams: boolean,
-=======
  *   failureCallback: function(!shaka.util.Error),
->>>>>>> v2.2.5_google
  *   rebufferingGoal: number,
  *   bufferingGoal: number,
  *   bufferBehind: number,
@@ -592,15 +572,9 @@ shakaExtern.ManifestConfiguration;
  *
  * @property {shakaExtern.RetryParameters} retryParameters
  *   Retry parameters for segment requests.
-<<<<<<< HEAD
- * @property {boolean} infiniteRetriesForLiveStreams
- *   If true, will retry infinitely on network errors, for live streams only.
- *   Defaults to true.
-=======
  * @property {function(!shaka.util.Error)} failureCallback
  *   A callback to decide what to do on a streaming failure.  Default behavior
  *   is to retry on live streams and not on VOD.
->>>>>>> v2.2.5_google
  * @property {number} rebufferingGoal
  *   The minimum number of seconds of content that the StreamingEngine must
  *   buffer before it can begin playback or can continue playback after it has

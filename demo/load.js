@@ -72,11 +72,7 @@
 
   if (compiledScript) {
     // This contains the entire library.
-<<<<<<< HEAD
-    loadRelativeScript('../dist/shaka-player.compiled.js');
-=======
     loadRelativeScript(compiledScript);
->>>>>>> v2.2.5_google
   } else {
     // In non-compiled mode, we load the closure library and the generated deps
     // file to bootstrap the system.  goog.require will load the rest.

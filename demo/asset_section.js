@@ -145,15 +145,12 @@ shakaDemo.preparePlayer_ = function(asset) {
       ['com.widevine.alpha', 'com.microsoft.playready', 'com.adobe.primetime'];
   var config = /** @type {shakaExtern.PlayerConfiguration} */(
       { abr: {}, streaming: {}, manifest: { dash: {} } });
-<<<<<<< HEAD
-=======
   config.drm = /** @type {shakaExtern.DrmConfiguration} */({
     advanced: {}});
   commonDrmSystems.forEach(function(system) {
     config.drm.advanced[system] =
         /** @type {shakaExtern.AdvancedDrmConfiguration} */({});
   });
->>>>>>> v2.2.5_google
   config.manifest.dash.clockSyncUri =
       '//shaka-player-demo.appspot.com/time.txt';
 
@@ -233,18 +230,8 @@ shakaDemo.load = function() {
 
     shakaDemo.hashShouldChange_();
 
-<<<<<<< HEAD
-    // Audio-only tracks have no width/height.
-    var videoTracks = player.getVariantTracks().filter(function(t) {
-      return t.videoCodec;
-    });
-
-    // Set a different poster for audio-only assets.
-    if (videoTracks.length == 0) {
-=======
     // Set a different poster for audio-only assets.
     if (player.isAudioOnly()) {
->>>>>>> v2.2.5_google
       shakaDemo.localVideo_.poster = shakaDemo.audioOnlyPoster_;
     }
 

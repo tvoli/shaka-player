@@ -222,94 +222,12 @@ shakaAssets.UplynkRequestFilter = function(type, request) {
     request.allowCrossSiteCredentials = true;
   }
 
-<<<<<<< HEAD:demo/assets.js
-/**
- * A response filter for VDMS Uplynk manifest responses,
- * this allows us to get the license prefix that is necessary
- * to later generate a proper license response.
- * @param {shaka.net.NetworkingEngine.RequestType} type
- * @param {shakaExtern.Response} response
- * The uplynk_prefix attribute is set on the shakaAssets object
- * and is later referenced in the UplynkRequestFilter.
- */
-shakaAssets.UplynkResponseFilter = function(type, response) {
-  if (type == shaka.net.NetworkingEngine.RequestType.MANIFEST) {
-    // Parse a custom header that contains a value needed to build a proper
-    // license server URL
-    shakaAssets.uplynk_prefix = response.headers['x-uplynk-prefix'];
-  }
-};
-
-
-/**
- * A license request filter for VDMS Uplynk license requests.
- * @param {shaka.net.NetworkingEngine.RequestType} type
- * @param {shakaExtern.Request} request
- * The uplynk_prefix variable is retrieved from the shakaAssets
- * object, and requires that the uplynk manifest response filter
- * also be set.
- */
-shakaAssets.UplynkRequestFilter = function(type, request) {
-  if (type == shaka.net.NetworkingEngine.RequestType.LICENSE ||
-      type == shaka.net.NetworkingEngine.RequestType.MANIFEST) {
-    request.allowCrossSiteCredentials = true;
-  }
-
-=======
->>>>>>> v2.2.5_google:demo/common/assets.js
   if (type == shaka.net.NetworkingEngine.RequestType.LICENSE) {
     // Modify the license request URL based on our cookie
     if (request.uris[0].indexOf('wv') !== -1) {
       request.uris[0] = shakaAssets.uplynk_prefix.concat('/wv');
     } else if (request.uris[0].indexOf('ck') !== -1) {
       request.uris[0] = shakaAssets.uplynk_prefix.concat('/ck');
-<<<<<<< HEAD:demo/assets.js
-    }
-  }
-};
-
-
-/**
- * @param {!Node} node
- * @return {Array.<shakaExtern.DrmInfo>}
- */
-shakaAssets.YouTubeCallback = function(node) {
-  var schemeIdUri = node.getAttribute('schemeIdUri');
-  if (schemeIdUri == 'http://youtube.com/drm/2012/10/10') {
-    /** @type {!Array.<shakaExtern.DrmInfo>} */
-    var configs = [];
-
-    for (var i = 0; i < node.childNodes.length; ++i) {
-      var child = node.childNodes[i];
-      if (child.nodeName == 'yt:SystemURL') {
-        // The URL may be http, but the demo app requires https.
-        var licenseServerUri = child.textContent.replace(/^http:/, 'https:');
-        var typeAttr = child.getAttribute('type');
-        var keySystem;
-        // NOTE: Ignoring clearkey type here because this YT demo content does
-        // not contain PSSHs appropriate for the clearkey CDM.
-        if (typeAttr == 'widevine') {
-          keySystem = 'com.widevine.alpha';
-        } else if (typeAttr == 'playready') {
-          keySystem = 'com.microsoft.playready';
-        } else {
-          continue;
-        }
-
-        configs.push({
-          keySystem: keySystem,
-          licenseServerUri: licenseServerUri,
-          distinctiveIdentifierRequired: false,
-          persistentStateRequired: false,
-          audioRobustness: '',
-          videoRobustness: '',
-          serverCertificate: null,
-          initData: null,
-          keyIds: []
-        });
-      }
-=======
->>>>>>> v2.2.5_google:demo/common/assets.js
     }
   }
 };

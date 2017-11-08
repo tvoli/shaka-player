@@ -65,24 +65,6 @@ shakaDemo.suppressHashChangeEvent_ = false;
 
 /**
  * @private
-<<<<<<< HEAD
- * @const {string}
- */
-shakaDemo.mainPoster_ = '//shaka-player-demo.appspot.com/assets/poster.jpg';
-
-
-/**
- * @private
- * @const {string}
- */
-shakaDemo.audioOnlyPoster_ =
-    '//shaka-player-demo.appspot.com/assets/audioOnly.gif';
-
-
-/**
- * The registered ID of the v2.1 Chromecast receiver demo.
-=======
->>>>>>> v2.2.5_google
  * @const {string}
  */
 shakaDemo.mainPoster_ = '//shaka-player-demo.appspot.com/assets/poster.jpg';

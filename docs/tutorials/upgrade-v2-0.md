@@ -58,8 +58,6 @@ See also the {@link shakaExtern.Track} structure which is used for all track
 types (variant and text).
 
 
-<<<<<<< HEAD
-=======
 #### Setting and configuring ABR manager
 
 In Shaka v2.0, a custom ABR manager could be set through:
@@ -132,7 +130,6 @@ In v2.2, the v2.0 interfaces are still supported, but are deprecated.  Support
 will be removed in v2.3.
 
 
->>>>>>> v2.2.5_google
 #### Selecting tracks and adaptation settings
 
 In v2.0, selecting a new video or audio track would implicitly disable
@@ -146,17 +143,10 @@ player.selectTrack(videoTracks[i]);
 player.configure({abr: {enabled: true}});
 ```
 
-<<<<<<< HEAD
-In v2.1, any change in ABR state must be made explicitly if desired.
-
-```js
-// v2.1
-=======
 In v2.2, any change in ABR state must be made explicitly if desired.
 
 ```js
 // v2.2
->>>>>>> v2.2.5_google
 // To explicitly disable:
 player.configure({abr: {enabled: false}});
 // Now select the track, which does not change adaptation state!
