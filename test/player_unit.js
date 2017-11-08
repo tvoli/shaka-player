@@ -1094,103 +1094,6 @@ describe('Player', function() {
     });
   });
 
-  describe('filterTracks', function() {
-    it('retains only video+audio variants if they exist', function(done) {
-      var manifest = new shaka.test.ManifestGenerator()
-        .addPeriod(0)
-          .addVariant(1)
-            .bandwidth(200)
-            .language('fr')
-            .addAudio(2).bandwidth(100)
-          .addVariant(2)
-            .bandwidth(400)
-            .language('en')
-            .addAudio(1).bandwidth(100)
-            .addVideo(4).bandwidth(100).size(100, 200)
-            .frameRate(1000000 / 42000)
-          .addVariant(3)
-            .bandwidth(200)
-            .addVideo(5).bandwidth(100).size(300, 400)
-            .frameRate(1000000 / 42000)
-        .addPeriod(1)
-          .addVariant(1)
-            .bandwidth(200)
-            .language('fr')
-            .addAudio(2).bandwidth(100)
-          .addVariant(2)
-            .bandwidth(200)
-            .addVideo(5).bandwidth(100).size(300, 400)
-            .frameRate(1000000 / 42000)
-          .addVariant(3)
-            .bandwidth(450)
-            .language('en')
-            .addAudio(1).bandwidth(100)
-            .addVideo(4).bandwidth(100).size(100, 200)
-            .frameRate(1000000 / 42000)
-        .build();
-
-      var variantTracks1 = [
-        {
-          id: 2,
-          active: false,
-          type: 'variant',
-          bandwidth: 400,
-          language: 'en',
-          label: null,
-          kind: null,
-          width: 100,
-          height: 200,
-          frameRate: 1000000 / 42000,
-          mimeType: 'video/mp4',
-          codecs: 'avc1.4d401f, mp4a.40.2',
-          audioCodec: 'mp4a.40.2',
-          videoCodec: 'avc1.4d401f',
-          primary: false,
-          roles: [],
-          videoId: 4,
-          audioId: 1
-        }
-      ];
-      var variantTracks2 = [
-        {
-          id: 3,
-          active: false,
-          type: 'variant',
-          bandwidth: 450,
-          language: 'en',
-          label: null,
-          kind: null,
-          width: 100,
-          height: 200,
-          frameRate: 1000000 / 42000,
-          mimeType: 'video/mp4',
-          codecs: 'avc1.4d401f, mp4a.40.2',
-          audioCodec: 'mp4a.40.2',
-          videoCodec: 'avc1.4d401f',
-          primary: false,
-          roles: [],
-          videoId: 4,
-          audioId: 1
-        }
-      ];
-
-      var parser = new shaka.test.FakeManifestParser(manifest);
-      var parserFactory = function() { return parser; };
-      player.load('', 0, parserFactory).catch(fail).then(function() {
-        // Check the first period's variant tracks.
-        var actualVariantTracks1 = player.getVariantTracks();
-        expect(actualVariantTracks1).toEqual(variantTracks1);
-
-        // Check the second period's variant tracks.
-        playhead.getTime.and.callFake(function() {
-          return 100;
-        });
-        var actualVariantTracks2 = player.getVariantTracks();
-        expect(actualVariantTracks2).toEqual(variantTracks2);
-      }).then(done);
-    });
-  });
-
   describe('tracks', function() {
     /** @type {!Array.<shakaExtern.Track>} */
     var variantTracks;
@@ -1203,42 +1106,41 @@ describe('Player', function() {
         .addPeriod(0)
           .addVariant(1)
             .bandwidth(200)
-            .language('en').primary()
-            .addAudio(1).bandwidth(100).roles(['main'])
+            .language('en')
+            .addAudio(1).bandwidth(100)
             .addVideo(4).bandwidth(100).size(100, 200)
             .frameRate(1000000 / 42000)
           .addVariant(2)
             .bandwidth(300)
-            .language('en').primary()
-            .addAudio(1)  // already defined
+            .language('en')
+            .addAudio(1).bandwidth(100)
             .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
           .addVariant(3)
             .bandwidth(200)
             .language('en')
-            .addAudio(2).bandwidth(100).roles(['commentary'])
-            .addVideo(4)  // already defined
+            .addAudio(2).bandwidth(100)
+            .addVideo(4).bandwidth(100).size(100, 200)
             .frameRate(1000000 / 42000)
           .addVariant(4)
             .bandwidth(300)
             .language('en')
-            .addAudio(2)  // already defined
-            .addVideo(5)  // already defined
+            .addAudio(2).bandwidth(100)
+            .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
           .addVariant(5)
             .language('es')
             .bandwidth(300)
             .addAudio(8).bandwidth(100)
-            .addVideo(5)  // already defined
+            .addVideo(5).bandwidth(200).size(200, 400).frameRate(24)
           .addTextStream(6)
             .language('es')
             .label('Spanish')
             .bandwidth(100).kind('caption')
-            .mime('text/vtt')
-            .primary().roles(['main'])
+                         .mime('text/vtt')
           .addTextStream(7)
             .language('en')
             .label('English')
             .bandwidth(100).kind('caption')
-            .mime('application/ttml+xml')
+                         .mime('application/ttml+xml')
           // Both text tracks should remain, even with different MIME types.
         .addPeriod(1)
           .addVariant(8)
@@ -1246,7 +1148,7 @@ describe('Player', function() {
             .language('en')
             .addAudio(9).bandwidth(100)
             .addVideo(10).bandwidth(100).size(100, 200)
-            .build();
+        .build();
 
       variantTracks = [
         {
@@ -1585,20 +1487,6 @@ describe('Player', function() {
       expect(getActiveVariantTrack().language).toBe('es');
     });
 
-    it('changing audio role changes active stream', function() {
-      chooseStreams();
-      canSwitch();
-
-      var period = manifest.periods[0];
-      var commentaryStream = period.variants[2].audio;
-
-      expect(streamingEngine.switch).not.toHaveBeenCalled();
-      player.selectAudioLanguage('en', 'commentary');
-
-      expect(streamingEngine.switch)
-          .toHaveBeenCalledWith(ContentType.AUDIO, commentaryStream, true);
-    });
-
     it('changing currentTextLanguage changes active stream', function() {
       streamingEngine.onCanSwitch();
 
@@ -1612,20 +1500,6 @@ describe('Player', function() {
       expect(streamingEngine.switchTextStream)
           .toHaveBeenCalledWith(englishStream);
       expect(getActiveTextTrack().language).toBe('en');
-    });
-
-    it('changing text role changes active stream', function() {
-      chooseStreams();
-      canSwitch();
-
-      var period = manifest.periods[0];
-      var commentaryStream = period.textStreams[2];
-
-      expect(streamingEngine.switch).not.toHaveBeenCalled();
-      player.selectTextLanguage('en', 'commentary');
-
-      expect(streamingEngine.switch)
-          .toHaveBeenCalledWith(ContentType.TEXT, commentaryStream, true);
     });
   });
 

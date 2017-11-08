@@ -236,7 +236,7 @@ shakaExtern.BufferedInfo;
  *   The video aspect ratio provided in the manifest, if present.
  * @property {?string} audioCodec
  *   The audio codecs string provided in the manifest, if present.
-  * @property {?string} videoCodec
+ * @property {?string} videoCodec
  *   The video codecs string provided in the manifest, if present.
  * @property {boolean} primary
  *   True indicates that this in the primary language for the content.
