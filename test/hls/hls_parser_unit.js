@@ -221,7 +221,6 @@ describe('HlsParser', function() {
     testHlsParser(master, media, manifest, done);
   });
 
-
   it('handles audio tags on audio streams', function(done) {
     var master = [
       '#EXTM3U\n',
