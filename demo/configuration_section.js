@@ -45,8 +45,8 @@ shakaDemo.setupConfiguration_ = function() {
       'change', shakaDemo.onAdaptationChange_);
   document.getElementById('logLevelList').addEventListener(
       'change', shakaDemo.onLogLevelChange_);
-  document.getElementById('enableAutoplay').addEventListener(
-      'change', shakaDemo.onAutoplayChange_);
+  document.getElementById('enableLoadOnRefresh').addEventListener(
+      'change', shakaDemo.onLoadOnRefreshChange_);
   document.getElementById('drmSettingsVideoRobustness').addEventListener(
       'input', shakaDemo.onDrmSettingsChange_);
   document.getElementById('drmSettingsAudioRobustness').addEventListener(
@@ -68,7 +68,7 @@ shakaDemo.setupConfiguration_ = function() {
 
 
 /** @private */
-shakaDemo.onAutoplayChange_ = function() {
+shakaDemo.onLoadOnRefreshChange_ = function() {
   // Change the hash, to mirror this.
   shakaDemo.hashShouldChange_();
 };
@@ -165,9 +165,9 @@ shakaDemo.onConfigInput_ = function(event) {
  */
 shakaDemo.onAdaptationChange_ = function(event) {
   // Update adaptation config.
-  shakaDemo.player_.configure(/** @type {shakaExtern.PlayerConfiguration} */({
-    abr: { enabled: event.target.checked }
-  }));
+  shakaDemo.player_.configure({
+    abr: {enabled: event.target.checked}
+  });
   // Change the hash, to mirror this.
   shakaDemo.hashShouldChange_();
 };
@@ -189,6 +189,14 @@ shakaDemo.onNativeChange_ = function(event) {
     showTrickPlay.disabled = false;
     shakaDemo.controls_.setEnabled(true);
   }
+
+  // Update text streaming config.  When we use native controls, we must always
+  // stream text.  This is because the native controls can't send an event when
+  // the text display state changes, so we can't use the display state to choose
+  // when to stream text.
+  shakaDemo.player_.configure({
+    streaming: {alwaysStreamText: event.target.checked}
+  });
 
   // Change the hash, to mirror this.
   shakaDemo.hashShouldChange_();

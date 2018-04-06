@@ -38,14 +38,14 @@ describe('DashParser Live', function() {
   /** @type {shakaExtern.ManifestParser.PlayerInterface} */
   var playerInterface;
 
-  beforeAll(function() {
+  beforeEach(function() {
+    // First, fake the clock so we can control timers.
+    // This does not mock Date.now, which must be done separately.
     jasmine.clock().install();
     // This polyfill is required for fakeEventLoop.
     shaka.polyfill.Promise.install(/* force */ true);
-  });
 
-  beforeEach(function() {
-    var retry = shaka.net.NetworkingEngine.defaultRetryParameters();
+    let retry = shaka.net.NetworkingEngine.defaultRetryParameters();
     fakeNetEngine = new shaka.test.FakeNetworkingEngine();
     parser = new shaka.dash.DashParser();
     parser.configure({
@@ -54,9 +54,9 @@ describe('DashParser Live', function() {
         clockSyncUri: '',
         customScheme: function(node) { return null; },
         ignoreDrmInfo: false,
-        xlinkFailGracefully: false
-      },
-      hls: { defaultTimeOffset: 0 }
+        xlinkFailGracefully: false,
+        defaultPresentationDelay: 10
+      }
     });
     playerInterface = {
       networkingEngine: fakeNetEngine,
@@ -71,12 +71,18 @@ describe('DashParser Live', function() {
   afterEach(function() {
     // Dash parser stop is synchronous.
     parser.stop();
-  });
 
-  afterAll(function() {
-    Date.now = oldNow;
+    // Uninstall the clock() first.  This also undoes mockDate(), and should be
+    // done afterEach, not afterAll.  Otherwise, we get conflicts when some
+    // tests use mockDate() and others directly overwrite Date.now.
     jasmine.clock().uninstall();
+    // Replace Date.now with the browser built-in.  This must come AFTER we
+    // uninstall the clock() module, or else mockDate() doesn't get cleaned up
+    // correctly.
+    Date.now = oldNow;
+    // Finally, uninstall the Promise mock.
     shaka.polyfill.Promise.uninstall();
+    // TODO: Clean up this suite so that everyone uses mockDate().
   });
 
   /**
@@ -444,8 +450,8 @@ describe('DashParser Live', function() {
     shaka.polyfill.Promise.flush();
   });
 
-  it('failures in update call error callback', function(done) {
-    var lines = [
+  it('calls the error callback if an update fails', function(done) {
+    let lines = [
       '<SegmentTemplate startNumber="1" media="s$Number$.mp4" duration="2" />'
     ];
     var manifest = makeSimpleLiveManifestText(lines, updateTime);
@@ -547,6 +553,55 @@ describe('DashParser Live', function() {
     shaka.polyfill.Promise.flush();
   });
 
+  it('delays subsequent updates when an update is slow', function(done) {
+    // For this test, we want Date.now() to follow the ticks of the fake clock.
+    jasmine.clock().mockDate();
+
+    const lines = [
+      '<SegmentTemplate startNumber="1" media="s$Number$.mp4" duration="2" />'
+    ];
+    const idealUpdateTime = shaka.dash.DashParser['MIN_UPDATE_PERIOD_'];
+    const manifestText = makeSimpleLiveManifestText(lines, idealUpdateTime);
+
+    fakeNetEngine.setResponseMapAsText({'dummy://foo': manifestText});
+    parser.start('dummy://foo', playerInterface).then((manifest) => {
+      fakeNetEngine.request.calls.reset();
+
+      // Make the first update take a long time.
+      const delay = fakeNetEngine.delayNextRequest();
+
+      // Wait for the update to start.
+      jasmine.clock().tick(idealUpdateTime * 1000);
+      shaka.polyfill.Promise.flush();
+
+      // Update period has passed, so an update has been requested.
+      expect(fakeNetEngine.request).toHaveBeenCalled();
+      fakeNetEngine.request.calls.reset();
+
+      // Make the update take an extra 5 seconds, then end the delay.
+      const extraWaitTimeMs = 5.0;
+      jasmine.clock().tick(extraWaitTimeMs * 1000);
+      delay.resolve();
+      shaka.polyfill.Promise.flush();
+      // No new calls, since we are still working on the same one.
+      expect(fakeNetEngine.request).not.toHaveBeenCalled();
+      fakeNetEngine.request.calls.reset();
+
+      // From now on, the updates should be farther apart.
+      jasmine.clock().tick(idealUpdateTime * 1000);
+      shaka.polyfill.Promise.flush();
+      // The update should not have happened yet.
+      expect(fakeNetEngine.request).not.toHaveBeenCalled();
+      fakeNetEngine.request.calls.reset();
+
+      // After waiting the extra time, the update request should fire.
+      jasmine.clock().tick(extraWaitTimeMs * 1000);
+      shaka.polyfill.Promise.flush();
+      expect(fakeNetEngine.request).toHaveBeenCalled();
+    }).catch(fail).then(done);
+    shaka.polyfill.Promise.flush();
+  });
+
   it('uses Mpd.Location', function(done) {
     var manifestText = [
       '<MPD type="dynamic" availabilityStartTime="1970-01-01T00:00:00Z"',
@@ -569,7 +624,7 @@ describe('DashParser Live', function() {
     parser.start('dummy://foo', playerInterface)
         .then(function(manifest) {
           expect(fakeNetEngine.request.calls.count()).toBe(1);
-          fakeNetEngine.expectRequest('dummy://foo', manifestRequest);
+          fakeNetEngine.expectCancelableRequest('dummy://foo', manifestRequest);
           fakeNetEngine.request.calls.reset();
 
           // Create a mock so we can verify it gives two URIs.
@@ -774,7 +829,8 @@ describe('DashParser Live', function() {
     it('stops updates', function(done) {
       parser.start(manifestUri, playerInterface)
           .then(function(manifest) {
-            fakeNetEngine.expectRequest(manifestUri, manifestRequestType);
+            fakeNetEngine.expectCancelableRequest(
+                manifestUri, manifestRequestType);
             fakeNetEngine.request.calls.reset();
 
             parser.stop();
@@ -788,7 +844,8 @@ describe('DashParser Live', function() {
       parser.start('dummy://foo', playerInterface)
           .then(function(manifest) {
             expect(manifest).toBe(null);
-            fakeNetEngine.expectRequest(manifestUri, manifestRequestType);
+            fakeNetEngine.expectCancelableRequest(
+                manifestUri, manifestRequestType);
             fakeNetEngine.request.calls.reset();
             delayForUpdatePeriod();
             // An update should not occur.
@@ -806,14 +863,16 @@ describe('DashParser Live', function() {
       parser.start('dummy://foo', playerInterface)
           .then(function(manifest) {
             expect(manifest).toBeTruthy();
-            fakeNetEngine.expectRequest(manifestUri, manifestRequestType);
+            fakeNetEngine.expectCancelableRequest(
+                manifestUri, manifestRequestType);
             fakeNetEngine.request.calls.reset();
             var delay = fakeNetEngine.delayNextRequest();
 
             delayForUpdatePeriod();
             // The request was made but should not be resolved yet.
             expect(fakeNetEngine.request.calls.count()).toBe(1);
-            fakeNetEngine.expectRequest(manifestUri, manifestRequestType);
+            fakeNetEngine.expectCancelableRequest(
+                manifestUri, manifestRequestType);
             fakeNetEngine.request.calls.reset();
             parser.stop();
             delay.resolve();
@@ -834,7 +893,7 @@ describe('DashParser Live', function() {
       Util.delay(0.2, realTimeout).then(function() {
         // This is the initial manifest request.
         expect(fakeNetEngine.request.calls.count()).toBe(1);
-        fakeNetEngine.expectRequest(manifestUri, manifestRequestType);
+        fakeNetEngine.expectCancelableRequest(manifestUri, manifestRequestType);
         fakeNetEngine.request.calls.reset();
         // Resolve the manifest request and wait on the UTCTiming request.
         delay.resolve();
@@ -996,6 +1055,29 @@ describe('DashParser Live', function() {
     testCommonBehaviors(
         basicLines, basicRefs, updateLines, updateRefs, partialUpdateLines);
   });
+
+  describe('SegmentTemplate w/ duration', function() {
+    var templateLines = [
+      '<SegmentTemplate startNumber="1" media="s$Number$.mp4" duration="2" />'
+    ];
+
+    it('produces sane references without assertions', function(done) {
+      var manifest = makeSimpleLiveManifestText(templateLines, updateTime);
+
+      fakeNetEngine.setResponseMapAsText({'dummy://foo': manifest});
+      parser.start('dummy://foo', playerInterface).then(function(manifest) {
+        expect(manifest.periods.length).toBe(1);
+        var stream = manifest.periods[0].variants[0].video;
+
+        // In https://github.com/google/shaka-player/issues/1204, this
+        // failed an assertion and returned endTime == 0.
+        var ref = stream.getSegmentReference(1);
+        expect(ref.endTime).toBeGreaterThan(0);
+      }).catch(fail).then(done);
+      shaka.polyfill.Promise.flush();
+    });
+  });
+
 
   describe('EventStream', function() {
     /** @const */

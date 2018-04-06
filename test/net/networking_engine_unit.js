@@ -43,6 +43,15 @@ describe('NetworkingEngine', /** @suppress {accessControls} */ function() {
     };
   });
 
+  function makeResolveScheme(spyName) {
+    return jasmine.createSpy(spyName).and.callFake(
+        function() {
+          return Promise.resolve({
+            uri: '', data: new ArrayBuffer(5), headers: {}
+          });
+        });
+  }
+
   beforeEach(function() {
     fakeProtocol = 'http:';
     error = new shaka.util.Error(
@@ -51,18 +60,15 @@ describe('NetworkingEngine', /** @suppress {accessControls} */ function() {
         shaka.util.Error.Code.HTTP_ERROR);
 
     networkingEngine = new shaka.net.NetworkingEngine();
-    resolveScheme = jasmine.createSpy('resolve scheme').and.callFake(
-        function() {
-          return Promise.resolve({
-            uri: '', data: new ArrayBuffer(5), headers: {}
-          });
-        });
+    resolveScheme = makeResolveScheme('resolve scheme');
     rejectScheme = jasmine.createSpy('reject scheme')
         .and.callFake(function() { return Promise.reject(error); });
     shaka.net.NetworkingEngine.registerScheme(
-        'resolve', Util.spyFunc(resolveScheme));
+        'resolve', Util.spyFunc(resolveScheme),
+        shaka.net.NetworkingEngine.PluginPriority.FALLBACK);
     shaka.net.NetworkingEngine.registerScheme(
-        'reject', Util.spyFunc(rejectScheme));
+        'reject', Util.spyFunc(rejectScheme),
+        shaka.net.NetworkingEngine.PluginPriority.FALLBACK);
   });
 
   afterEach(function() {
@@ -263,13 +269,54 @@ describe('NetworkingEngine', /** @suppress {accessControls} */ function() {
   });
 
   describe('request', function() {
-    it('uses registered schemes', function(done) {
-      networkingEngine.request(requestType, createRequest('resolve://foo'))
+    function testResolve(schemeSpy) {
+      return networkingEngine.request(
+          requestType, createRequest('resolve://foo'))
           .catch(fail)
           .then(function() {
-            expect(resolveScheme).toHaveBeenCalled();
-            done();
+            expect(schemeSpy).toHaveBeenCalled();
           });
+    }
+
+    it('uses registered schemes', function(done) {
+      testResolve(resolveScheme).then(done);
+    });
+
+    it('uses registered scheme plugins in order of priority', function(done) {
+      var applicationResolveScheme =
+          makeResolveScheme('application resolve scheme');
+      shaka.net.NetworkingEngine.registerScheme(
+          'resolve', Util.spyFunc(applicationResolveScheme),
+          shaka.net.NetworkingEngine.PluginPriority.APPLICATION);
+      var preferredResolveScheme =
+          makeResolveScheme('preferred resolve scheme');
+      shaka.net.NetworkingEngine.registerScheme(
+          'resolve', Util.spyFunc(preferredResolveScheme),
+          shaka.net.NetworkingEngine.PluginPriority.PREFERRED);
+
+      testResolve(applicationResolveScheme).then(done);
+    });
+
+    it('uses newest scheme plugin in case of tie in priority', function(done) {
+      var secondResolveScheme = makeResolveScheme('second resolve scheme');
+      shaka.net.NetworkingEngine.registerScheme(
+          'resolve', Util.spyFunc(secondResolveScheme),
+          shaka.net.NetworkingEngine.PluginPriority.FALLBACK);
+
+      testResolve(secondResolveScheme).then(done);
+    });
+
+    it('defaults new scheme plugins to application priority', function(done) {
+      var secondResolveScheme = makeResolveScheme('second resolve scheme');
+      shaka.net.NetworkingEngine.registerScheme(
+          'resolve', Util.spyFunc(secondResolveScheme));
+      var preferredResolveScheme =
+          makeResolveScheme('preferred resolve scheme');
+      shaka.net.NetworkingEngine.registerScheme(
+          'resolve', Util.spyFunc(preferredResolveScheme),
+          shaka.net.NetworkingEngine.PluginPriority.PREFERRED);
+
+      testResolve(secondResolveScheme).then(done);
     });
 
     it('can unregister scheme', function(done) {
@@ -278,6 +325,22 @@ describe('NetworkingEngine', /** @suppress {accessControls} */ function() {
           .then(fail)
           .catch(function() { expect(resolveScheme).not.toHaveBeenCalled(); })
           .then(done);
+    });
+
+    it('unregister removes all plugins for scheme at once', function(done) {
+      var preferredResolveScheme =
+          makeResolveScheme('preferred resolve scheme');
+      shaka.net.NetworkingEngine.registerScheme(
+          'resolve', Util.spyFunc(preferredResolveScheme),
+          shaka.net.NetworkingEngine.PluginPriority.PREFERRED);
+
+      shaka.net.NetworkingEngine.unregisterScheme('resolve');
+      networkingEngine.request(requestType, createRequest('resolve://foo'))
+          .then(fail)
+          .catch(function() {
+            expect(resolveScheme).not.toHaveBeenCalled();
+            expect(preferredResolveScheme).not.toHaveBeenCalled();
+          }).then(done);
     });
 
     it('rejects if scheme does not exist', function(done) {
@@ -339,6 +402,85 @@ describe('NetworkingEngine', /** @suppress {accessControls} */ function() {
       });
       networkingEngine.request(requestType, originalRequest)
           .catch(fail).then(done);
+    });
+  });
+
+  describe('request cancel', function() {
+    /** @const */
+    var origSetTimeout = shaka.net.Backoff.setTimeout_;
+
+    /** @type {!jasmine.Spy} */
+    var setTimeoutSpy;
+
+    beforeAll(function() {
+      setTimeoutSpy = jasmine.createSpy('setTimeout');
+      setTimeoutSpy.and.callFake(origSetTimeout);
+      shaka.net.Backoff.setTimeout_ = Util.spyFunc(setTimeoutSpy);
+    });
+
+    afterAll(function() {
+      shaka.net.Backoff.setTimeout_ = origSetTimeout;
+    });
+
+    beforeEach(function() {
+      setTimeoutSpy.calls.reset();
+    });
+
+    it('cancels instantly if isCanceled is true from start', function(done) {
+      var isCanceled = function() { return true; };
+      var request = createRequest('resolve://foo');
+      networkingEngine.request(requestType, request, isCanceled)
+          .then(fail)
+          .catch(function() {
+            expect(setTimeoutSpy.calls.count()).toBe(0);
+            expect(resolveScheme.calls.count()).toBe(0);
+            done();
+          });
+    });
+
+    it('cancels when isCanceled becomes true', function(done) {
+      var request = createRequest('reject://foo', {
+        maxAttempts: 3,
+        baseDelay: 1000,
+        backoffFactor: 0,
+        fuzzFactor: 0,
+        timeout: 0
+      });
+
+      var cancelToken = false;
+      var isCanceled = function() { return cancelToken; };
+      networkingEngine.request(requestType, request, isCanceled)
+          .then(fail)
+          .catch(function() {
+            // Cancel at 500 MS means it will have gone through two 200 MS
+            // setTimeouts and will be halfway through the third.
+            expect(setTimeoutSpy.calls.count()).toBe(3);
+            expect(cancelToken).toBe(true);
+            expect(rejectScheme.calls.count()).toBe(1);
+            done();
+          });
+      origSetTimeout(function() {
+        cancelToken = true;
+      }, 500);
+    });
+
+    it('does single timeouts when isCanceled is not provided', function(done) {
+      var request = createRequest('reject://foo', {
+        maxAttempts: 2,
+        baseDelay: 400,
+        backoffFactor: 0,
+        fuzzFactor: 0,
+        timeout: 0
+      });
+      networkingEngine.request(requestType, request)
+          .then(fail)
+          .catch(function() {
+            // If this is broken into 200 MS segments, this would have more than
+            // one call to setTimeoutSpy.
+            expect(setTimeoutSpy.calls.count()).toBe(1);
+            expect(rejectScheme.calls.count()).toBe(2);
+            done();
+          });
     });
   });
 

@@ -276,7 +276,7 @@ describe('Player', function() {
           expect(player.isLive()).toEqual(isLive);
           video.play();
           // 30 seconds or video ended, whichever comes first.
-          return waitForTimeOrEnd(video, 30);
+          return waitForTimeOrEnd(video, 40);
         }).then(function() {
           if (video.ended) {
             expect(video.currentTime).toBeCloseTo(video.duration, 1);
@@ -289,7 +289,7 @@ describe('Player', function() {
               // Seek and play out the end.
               video.currentTime = video.duration - 15;
               // 30 seconds or video ended, whichever comes first.
-              return waitForTimeOrEnd(video, 30).then(function() {
+              return waitForTimeOrEnd(video, 40).then(function() {
                 expect(video.ended).toBe(true);
                 expect(video.currentTime).toBeCloseTo(video.duration, 1);
               });
@@ -310,6 +310,186 @@ describe('Player', function() {
       expect(tracks.length).toBeGreaterThan(0);
       return tracks[0].language;
     }
+  });
+
+  describe('cancel', function() {
+    /** @type {!jasmine.Spy} */
+    var schemeSpy;
+
+    beforeAll(function() {
+      schemeSpy = jasmine.createSpy('reject scheme');
+      schemeSpy.and.callFake(function() {
+        // Throw a recoverable error so it will retry.
+        var error = new shaka.util.Error(
+            shaka.util.Error.Severity.RECOVERABLE,
+            shaka.util.Error.Category.NETWORK,
+            shaka.util.Error.Code.HTTP_ERROR);
+        return Promise.reject(error);
+      });
+      compiledShaka.net.NetworkingEngine.registerScheme('reject',
+          Util.spyFunc(schemeSpy));
+    });
+
+    afterEach(function() {
+      schemeSpy.calls.reset();
+    });
+
+    afterAll(function() {
+      compiledShaka.net.NetworkingEngine.unregisterScheme('reject');
+    });
+
+    function testTemplate(operationFn) {
+      // No data will be loaded for this test, so it can use a real manifest
+      // parser safely.
+      player.load('reject://www.foo.com/bar.mpd').then(fail);
+      return shaka.test.Util.delay(0.1).then(operationFn).then(function() {
+        expect(schemeSpy.calls.count()).toBe(1);
+      });
+    }
+
+    it('unload prevents further manifest load retries', function(done) {
+      testTemplate(function() { return player.unload(); }).then(done);
+    });
+
+    it('destroy prevents further manifest load retries', function(done) {
+      testTemplate(function() { return player.destroy(); }).then(done);
+    });
+  });
+
+  describe('TextDisplayer plugin', function() {
+    // Simulate the use of an external TextDisplayer plugin.
+    var textDisplayer;
+    beforeEach(function() {
+      textDisplayer = {
+        destroy: jasmine.createSpy('destroy'),
+        append: jasmine.createSpy('append'),
+        remove: jasmine.createSpy('remove'),
+        isTextVisible: jasmine.createSpy('isTextVisible'),
+        setTextVisibility: jasmine.createSpy('setTextVisibility')
+      };
+
+      textDisplayer.destroy.and.returnValue(Promise.resolve());
+      textDisplayer.isTextVisible.and.returnValue(true);
+
+      player.configure({
+        textDisplayFactory: function() { return textDisplayer; }
+      });
+
+      // Make sure the configuration was taken.
+      var configuredFactory = player.getConfiguration().textDisplayFactory;
+      var configuredTextDisplayer = new configuredFactory();
+      expect(configuredTextDisplayer).toBe(textDisplayer);
+    });
+
+    // Regression test for https://github.com/google/shaka-player/issues/1187
+    it('does not throw on destroy', function(done) {
+      player.load('test:sintel_compiled').then(function() {
+        video.play();
+        return waitUntilPlayheadReaches(video, 1, 10);
+      }).then(function() {
+        return player.unload();
+      }).then(function() {
+        // Before we fixed #1187, the call to destroy() on textDisplayer was
+        // renamed in the compiled version and could not be called.
+        expect(textDisplayer.destroy).toHaveBeenCalled();
+      }).catch(fail).then(done);
+    });
+  });
+
+  describe('TextAndRoles', function() {
+    // Regression Test. Makes sure that the language and role fields have been
+    // properly exported from the player.
+    it('exports language and roles fields', function(done) {
+      player.load('test:sintel_compiled').then(() => {
+        let languagesAndRoles = player.getTextLanguagesAndRoles();
+        expect(languagesAndRoles.length).toBeTruthy();
+        languagesAndRoles.forEach((languageAndRole) => {
+          expect(languageAndRole.language).not.toBeUndefined();
+          expect(languageAndRole.role).not.toBeUndefined();
+        });
+      }).catch(fail).then(done);
+    });
+  });
+
+  describe('streaming event', function() {
+    // Calling switch early during load() caused a failed assertion in Player
+    // and the track selection was ignored.  Because this bug involved
+    // interactions between Player and StreamingEngine, it is an integration
+    // test and not a unit test.
+    // https://github.com/google/shaka-player/issues/1119
+    it('allows early selection of specific tracks', function(done) {
+      const streamingListener = jasmine.createSpy('listener');
+
+      // Because this is an issue with failed assertions, destroy the existing
+      // player from the compiled version, and create a new one using the
+      // uncompiled version.  Then we will get assertions.
+      eventManager.unlisten(player, 'error');
+      player.destroy().then(() => {
+        player = new shaka.Player(video);
+        player.configure({abr: {enabled: false}});
+        eventManager.listen(player, 'error', Util.spyFunc(onErrorSpy));
+
+        // When 'streaming' fires, select the first track explicitly.
+        player.addEventListener('streaming', Util.spyFunc(streamingListener));
+        streamingListener.and.callFake(() => {
+          const tracks = player.getVariantTracks();
+          player.selectVariantTrack(tracks[0]);
+        });
+
+        // Now load the content.
+        return player.load('test:sintel');
+      }).then(() => {
+        // When the bug triggers, we fail assertions in Player.
+        // Make sure the listener was triggered, so that it could trigger the
+        // code path in this bug.
+        expect(streamingListener).toHaveBeenCalled();
+      }).catch(fail).then(done);
+    });
+
+    // After fixing the issue above, calling switch early during a second load()
+    // caused a failed assertion in StreamingEngine, because we did not reset
+    // switchingPeriods_ in Player.  Because this bug involved interactions
+    // between Player and StreamingEngine, it is an integration test and not a
+    // unit test.
+    // https://github.com/google/shaka-player/issues/1119
+    it('allows selection of tracks in subsequent loads', function(done) {
+      const streamingListener = jasmine.createSpy('listener');
+
+      // Because this is an issue with failed assertions, destroy the existing
+      // player from the compiled version, and create a new one using the
+      // uncompiled version.  Then we will get assertions.
+      eventManager.unlisten(player, 'error');
+      player.destroy().then(() => {
+        player = new shaka.Player(video);
+        player.configure({abr: {enabled: false}});
+        eventManager.listen(player, 'error', Util.spyFunc(onErrorSpy));
+
+        // This bug only triggers when you do this on the second load.
+        // So we load one piece of content, then set up the streaming listener
+        // to change tracks, then we load a second piece of content.
+        return player.load('test:sintel');
+      }).then(() => {
+        // Give StreamingEngine time to complete all setup and to call back into
+        // the Player with canSwitch_.  If you move on too quickly to the next
+        // load(), the bug does not reproduce.
+        return shaka.test.Util.delay(1);
+      }).then(() => {
+        player.addEventListener('streaming', Util.spyFunc(streamingListener));
+
+        streamingListener.and.callFake(() => {
+          const track = player.getVariantTracks()[0];
+          player.selectVariantTrack(track);
+        });
+
+        // Now load again to trigger the failed assertion.
+        return player.load('test:sintel');
+      }).then(() => {
+        // When the bug triggers, we fail assertions in StreamingEngine.
+        // So just make sure the listener was triggered, so that it could
+        // trigger the code path in this bug.
+        expect(streamingListener).toHaveBeenCalled();
+      }).catch(fail).then(done);
+    });
   });
 
   /**

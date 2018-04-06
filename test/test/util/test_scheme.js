@@ -27,7 +27,7 @@ goog.provide('shaka.test.TestScheme');
  * @return {!Promise.<shakaExtern.Response>}
  */
 shaka.test.TestScheme = function(uri, request) {
-  var manifestParts = /^test:([^\/]+)$/.exec(uri);
+  var manifestParts = /^test:([^/]+)$/.exec(uri);
   if (manifestParts) {
     /** @type {shakaExtern.Response} */
     var response = {
@@ -37,7 +37,7 @@ shaka.test.TestScheme = function(uri, request) {
     };
     return Promise.resolve(response);
   }
-  var re = /^test:([^\/]+)\/(video|audio)\/(init|[0-9]+)$/;
+  var re = /^test:([^/]+)\/(video|audio)\/(init|[0-9]+)$/;
   var segmentParts = re.exec(uri);
   if (!segmentParts) {
     // Use expect so the URI is printed on errors.
@@ -166,7 +166,7 @@ shaka.test.TestScheme.DATA = {
       mimeType: 'text/vtt'
     },
     licenseServers: {
-      'com.widevine.alpha': '//proxy.uat.widevine.com/proxy'
+      'com.widevine.alpha': '//cwip-shaka-proxy.appspot.com/no_auth'
     },
     duration: 30
   },
@@ -203,9 +203,46 @@ shaka.test.TestScheme.DATA = {
     },
     licenseServers: {
       'com.widevine.alpha':
-          '//drm-widevine-licensing.axtest.net/AcquireLicense',
+          'https://drm-widevine-licensing.axtest.net/AcquireLicense',
       'com.microsoft.playready':
-          '//drm-playready-licensing.axtest.net/AcquireLicense'
+          'https://drm-playready-licensing.axtest.net/AcquireLicense'
+    },
+    licenseRequestHeaders: {
+      'X-AxDRM-Message':
+          'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ2ZXJzaW9uIjoxLCJjb21fa2V5' +
+          'X2lkIjoiNjllNTQwODgtZTllMC00NTMwLThjMWEtMWViNmRjZDBkMTRlIiwibWVzc' +
+          '2FnZSI6eyJ0eXBlIjoiZW50aXRsZW1lbnRfbWVzc2FnZSIsImtleXMiOlt7ImlkIj' +
+          'oiNmU1YTFkMjYtMjc1Ny00N2Q3LTgwNDYtZWFhNWQxZDM0YjVhIn1dfX0.yF7PflO' +
+          'Pv9qHnu3ZWJNZ12jgkqTabmwXbDWk_47tLNE'
+    },
+    duration: 30
+  },
+  'multidrm_no_init_data': {
+    video: {
+      initSegmentUri: '/base/test/test/assets/multidrm-video-init.mp4',
+      mvhdOffset: 0x72,
+      segmentUri: '/base/test/test/assets/multidrm-video-segment.mp4',
+      tfdtOffset: 0x78,
+      segmentDuration: 4,
+      presentationTimeOffset: 0,
+      mimeType: 'video/mp4',
+      codecs: 'avc1.64001e'
+    },
+    audio: {
+      initSegmentUri: '/base/test/test/assets/multidrm-audio-init.mp4',
+      mvhdOffset: 0x72,
+      segmentUri: '/base/test/test/assets/multidrm-audio-segment.mp4',
+      tfdtOffset: 0x7c,
+      segmentDuration: 4,
+      presentationTimeOffset: 0,
+      mimeType: 'audio/mp4',
+      codecs: 'mp4a.40.2'
+    },
+    licenseServers: {
+      'com.widevine.alpha':
+          'https://drm-widevine-licensing.axtest.net/AcquireLicense',
+      'com.microsoft.playready':
+          'https://drm-playready-licensing.axtest.net/AcquireLicense'
     },
     licenseRequestHeaders: {
       'X-AxDRM-Message':
@@ -337,31 +374,29 @@ shaka.test.TestScheme.createManifests = function(shaka, suffix) {
 
   // Custom generators:
 
-  if (true) {  // The linter complains without the "if" (i.e. for plain blocks)
-    var data = DATA['sintel'];
-    var period_duration = 10;
-    var num_periods = 10;
-    var gen = new windowShaka.test.ManifestGenerator(shaka)
-        .setPresentationDuration(period_duration * num_periods);
+  var data = DATA['sintel'];
+  var period_duration = 10;
+  var num_periods = 10;
+  var gen = new windowShaka.test.ManifestGenerator(shaka)
+      .setPresentationDuration(period_duration * num_periods);
 
-    for (var i = 0; i < num_periods; i++) {
-      gen.addPeriod(period_duration * i);
+  for (var i = 0; i < num_periods; i++) {
+    gen.addPeriod(period_duration * i);
 
-      gen.addVariant(2 * i).language('en');
-      gen.addVideo(4 * i);
-      addStreamInfo(gen, data, ContentType.VIDEO, 'sintel');
-      gen.addAudio(4 * i + 1);
-      addStreamInfo(gen, data, ContentType.AUDIO, 'sintel');
+    gen.addVariant(2 * i).language('en');
+    gen.addVideo(4 * i);
+    addStreamInfo(gen, data, ContentType.VIDEO, 'sintel');
+    gen.addAudio(4 * i + 1);
+    addStreamInfo(gen, data, ContentType.AUDIO, 'sintel');
 
-      gen.addVariant(2 * i + 1).language('es');
-      gen.addVideo(4 * i + 2);
-      addStreamInfo(gen, data, ContentType.VIDEO, 'sintel');
-      gen.addAudio(4 * i + 3);
-      addStreamInfo(gen, data, ContentType.AUDIO, 'sintel');
-    }
-
-    MANIFESTS['sintel_short_periods' + suffix] = gen.build();
+    gen.addVariant(2 * i + 1).language('es');
+    gen.addVideo(4 * i + 2);
+    addStreamInfo(gen, data, ContentType.VIDEO, 'sintel');
+    gen.addAudio(4 * i + 3);
+    addStreamInfo(gen, data, ContentType.AUDIO, 'sintel');
   }
+
+  MANIFESTS['sintel_short_periods' + suffix] = gen.build();
 
   return Promise.all(async);
 };
@@ -388,7 +423,7 @@ shaka.test.TestScheme.ManifestParser.prototype.configure = function(config) {};
 /** @override */
 shaka.test.TestScheme.ManifestParser.prototype.start =
     function(uri, playerInterface) {
-  var re = /^test:([^\/]+)$/;
+  var re = /^test:([^/]+)$/;
   var manifestParts = re.exec(uri);
   if (!manifestParts) {
     // Use expect so the URI is printed on errors.

@@ -15,6 +15,35 @@
  * limitations under the License.
  */
 
+
+/**
+ * @typedef {{
+ *   length: number,
+ *   start: jasmine.Spy,
+ *   end: jasmine.Spy
+ * }}
+ */
+var MockTimeRanges;
+
+
+/**
+ * @typedef {{
+ *   abort: jasmine.Spy,
+ *   appendBuffer: jasmine.Spy,
+ *   remove: jasmine.Spy,
+ *   updating: boolean,
+ *   addEventListener: jasmine.Spy,
+ *   removeEventListener: function(),
+ *   buffered: (MockTimeRanges|TimeRanges),
+ *   timestampOffset: number,
+ *   appendWindowEnd: number,
+ *   updateend: function(),
+ *   error: function()
+ * }}
+ */
+var MockSourceBuffer;
+
+
 describe('MediaSourceEngine', function() {
   var Util = shaka.test.Util;
   var ContentType = shaka.util.ManifestParserUtils.ContentType;
@@ -51,6 +80,9 @@ describe('MediaSourceEngine', function() {
     };
 
     shaka.text.TextEngine = createMockTextEngineCtor();
+    shaka.media.Transmuxer.isSupported = function(mimeType, contentType) {
+      return mimeType == 'tsMimetype';
+    };
   });
 
   afterAll(function() {
@@ -592,14 +624,15 @@ describe('MediaSourceEngine', function() {
 
     it('will forward to TextEngine', function(done) {
       expect(mockTextEngine.setTimestampOffset).not.toHaveBeenCalled();
-      expect(mockTextEngine.setAppendWindowEnd).not.toHaveBeenCalled();
+      expect(mockTextEngine.setAppendWindow).not.toHaveBeenCalled();
       mediaSourceEngine
           .setStreamProperties(ContentType.TEXT,
                                /* timestampOffset */ 10,
+                               /* appendWindowStart */ 0,
                                /* appendWindowEnd */ 20)
           .then(function() {
             expect(mockTextEngine.setTimestampOffset).toHaveBeenCalledWith(10);
-            expect(mockTextEngine.setAppendWindowEnd).toHaveBeenCalledWith(20);
+            expect(mockTextEngine.setAppendWindow).toHaveBeenCalledWith(0, 20);
           })
           .catch(fail)
           .then(done);
@@ -955,6 +988,7 @@ describe('MediaSourceEngine', function() {
     return mediaSource;
   }
 
+  /** @return {MockSourceBuffer} */
   function createMockSourceBuffer() {
     return {
       abort: jasmine.createSpy('abort'),
@@ -982,7 +1016,7 @@ describe('MediaSourceEngine', function() {
       expect(mockTextEngine).toBeFalsy();
       mockTextEngine = jasmine.createSpyObj('TextEngine', [
         'initParser', 'destroy', 'appendBuffer', 'remove', 'setTimestampOffset',
-        'setAppendWindowEnd', 'bufferStart', 'bufferEnd', 'bufferedAheadOf',
+        'setAppendWindow', 'bufferStart', 'bufferEnd', 'bufferedAheadOf',
         'setDisplayer'
       ]);
 

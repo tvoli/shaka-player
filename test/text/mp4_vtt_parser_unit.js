@@ -16,64 +16,45 @@
  */
 
 describe('Mp4VttParser', function() {
-  /** @const */
-  var vttInitSegmentUri = '/base/test/test/assets/vtt-init.mp4';
-  /** @const */
-  var vttSegmentUri = '/base/test/test/assets/vtt-segment.mp4';
-  /** @const */
-  var vttSegSettingsUri = '/base/test/test/assets/vtt-segment-settings.mp4';
-  /** @const */
-  var vttSegNoDurationUri =
+  const vttInitSegmentUri = '/base/test/test/assets/vtt-init.mp4';
+  const vttSegmentUri = '/base/test/test/assets/vtt-segment.mp4';
+  const vttSegmentMultiPayloadUri =
+      '/base/test/test/assets/vtt-segment-multi-payload.mp4';
+  const vttSegSettingsUri = '/base/test/test/assets/vtt-segment-settings.mp4';
+  const vttSegNoDurationUri =
       '/base/test/test/assets/vtt-segment-no-duration.mp4';
   /** @const */
   var audioInitSegmentUri = '/base/test/test/assets/sintel-audio-init.mp4';
 
-  /** @type {!ArrayBuffer} */
+  /** @type {!Uint8Array} */
   var vttInitSegment;
-  /** @type {!ArrayBuffer} */
+  /** @type {!Uint8Array} */
   var vttSegment;
-  /** @type {!ArrayBuffer} */
-  var vttSegSettings;
-  /** @type {!ArrayBuffer} */
+  /** @type {!Uint8Array} */
+  let vttSegmentMultiPayload;
+  /** @type {!Uint8Array} */
+  let vttSegSettings;
+  /** @type {!Uint8Array} */
   var vttSegNoDuration;
-  /** @type {!ArrayBuffer} */
+  /** @type {!Uint8Array} */
   var audioInitSegment;
 
-  /** @type {boolean} */
-  var mockCue = false;
-
   beforeAll(function(done) {
-    // Mock out VTTCue if not supported.  These tests don't actually need
-    // VTTCue to do anything, this simply verifies the value of its members.
-    if (!window.VTTCue) {
-      mockCue = true;
-      window.VTTCue = function(start, end, text) {
-        this.startTime = start;
-        this.endTime = end;
-        this.text = text;
-      };
-    }
-
     Promise.all([
       shaka.test.Util.fetch(vttInitSegmentUri),
       shaka.test.Util.fetch(vttSegmentUri),
+      shaka.test.Util.fetch(vttSegmentMultiPayloadUri),
       shaka.test.Util.fetch(vttSegSettingsUri),
       shaka.test.Util.fetch(vttSegNoDurationUri),
       shaka.test.Util.fetch(audioInitSegmentUri)
     ]).then(function(responses) {
-      vttInitSegment = responses[0];
-      vttSegment = responses[1];
-      vttSegSettings = responses[2];
-      vttSegNoDuration = responses[3];
-      audioInitSegment = responses[4];
+      vttInitSegment = new Uint8Array(responses[0]);
+      vttSegment = new Uint8Array(responses[1]);
+      vttSegmentMultiPayload = new Uint8Array(responses[2]);
+      vttSegSettings = new Uint8Array(responses[3]);
+      vttSegNoDuration = new Uint8Array(responses[4]);
+      audioInitSegment = new Uint8Array(responses[5]);
     }).catch(fail).then(done);
-  });
-
-  afterAll(function() {
-    // Delete our mock.
-    if (mockCue) {
-      delete window.VTTCue;
-    }
   });
 
   it('parses init segment', function() {
@@ -99,6 +80,34 @@ describe('Mp4VttParser', function() {
     parser.parseInit(vttInitSegment);
     var time = {periodStart: 0, segmentStart: 0, segmentEnd: 0};
     var result = parser.parseMedia(vttSegment, time);
+    verifyHelper(cues, result);
+  });
+
+  it('plays multiple payloads at one time if specified by size', () => {
+    let cues = [
+      {
+        start: 110,
+        end: 113,
+        payload: 'Hello'
+      },
+      // This cue is part of the same presentation as the previous one, so it
+      // shares the same start time and duration.
+      {
+        start: 110,
+        end: 113,
+        payload: 'and'
+      },
+      {
+        start: 113,
+        end: 116.276,
+        payload: 'goodbye'
+      }
+    ];
+
+    let parser = new shaka.text.Mp4VttParser();
+    parser.parseInit(vttInitSegment);
+    let time = {periodStart: 0, segmentStart: 0, segmentEnd: 0};
+    let result = parser.parseMedia(vttSegmentMultiPayload, time);
     verifyHelper(cues, result);
   });
 

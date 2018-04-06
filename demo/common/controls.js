@@ -123,10 +123,15 @@ ShakaControls.prototype.init = function(castProxy, onError, notifyCastStatus) {
   this.video_.addEventListener(
       'pause', this.onPlayStateChange_.bind(this));
 
+  // Since videos go into a paused state at the end, Chrome and Edge both fire
+  // the 'pause' event when a video ends.  IE 11 only fires the 'ended' event.
+  this.video_.addEventListener(
+      'ended', this.onPlayStateChange_.bind(this));
+
   this.seekBar_.addEventListener(
       'mousedown', this.onSeekStart_.bind(this));
   this.seekBar_.addEventListener(
-      'touchstart', this.onSeekStart_.bind(this));
+      'touchstart', this.onSeekStart_.bind(this), { passive: true });
   this.seekBar_.addEventListener(
       'input', this.onSeekInput_.bind(this));
   this.seekBar_.addEventListener(
@@ -168,7 +173,7 @@ ShakaControls.prototype.init = function(castProxy, onError, notifyCastStatus) {
       'click', this.onCastClick_.bind(this));
 
   this.videoContainer_.addEventListener(
-      'touchstart', this.onContainerTouch_.bind(this));
+      'touchstart', this.onContainerTouch_.bind(this), { passive: false });
   this.videoContainer_.addEventListener(
       'click', this.onContainerClick_.bind(this));
 
@@ -179,18 +184,17 @@ ShakaControls.prototype.init = function(castProxy, onError, notifyCastStatus) {
   this.videoContainer_.addEventListener(
       'mousemove', this.onMouseMove_.bind(this));
   this.videoContainer_.addEventListener(
-      'touchmove', this.onMouseMove_.bind(this));
+      'touchmove', this.onMouseMove_.bind(this), { passive: true });
   this.videoContainer_.addEventListener(
-      'touchend', this.onMouseMove_.bind(this));
+      'touchend', this.onMouseMove_.bind(this), { passive: true });
   this.videoContainer_.addEventListener(
       'mouseout', this.onMouseOut_.bind(this));
 
   this.castProxy_.addEventListener(
       'caststatuschanged', this.onCastStatusChange_.bind(this));
 
-  var screenOrientation = this.getScreenOrientation_();
-  if (screenOrientation) {
-    screenOrientation.addEventListener(
+  if (screen.orientation) {
+    screen.orientation.addEventListener(
         'change', this.onScreenRotation_.bind(this));
   }
 };
@@ -203,28 +207,17 @@ ShakaControls.prototype.init = function(castProxy, onError, notifyCastStatus) {
  * @private
  */
 ShakaControls.prototype.onScreenRotation_ = function() {
-  var orientation = this.getScreenOrientation_();
-  if (!this.video_ || this.video_.readyState == 0 || !orientation ||
+  if (!this.video_ ||
+      this.video_.readyState == 0 ||
       this.castProxy_.isCasting()) return;
-  if (orientation.type.indexOf('landscape') >= 0 &&
+
+  if (screen.orientation.type.indexOf('landscape') >= 0 &&
       !document.fullscreenElement) {
     this.videoContainer_.requestFullscreen();
-  } else if (orientation.type.indexOf('portrait') >= 0 &&
+  } else if (screen.orientation.type.indexOf('portrait') >= 0 &&
       document.fullscreenElement) {
     document.exitFullscreen();
   }
-};
-
-
-/**
- * Get screen orientation.
- * Screen Orientation is implemented with a prefix for some browsers.
- * https://developer.mozilla.org/en-US/docs/Web/API/Screen/orientation
- * @return {?ScreenOrientation}
- * @private
- */
-ShakaControls.prototype.getScreenOrientation_ = function() {
-  return screen.orientation || screen.mozOrientation || screen.msOrientation;
 };
 
 
@@ -417,6 +410,13 @@ ShakaControls.prototype.onPlayPauseClick_ = function() {
 
 /** @private */
 ShakaControls.prototype.onPlayStateChange_ = function() {
+  // On IE 11, a video may end without going into a paused state.  To correct
+  // both the UI state and the state of the video tag itself, we explicitly
+  // pause the video if that happens.
+  if (this.video_.ended && !this.video_.paused) {
+    this.video_.pause();
+  }
+
   // Video is paused during seek, so don't show the play arrow while seeking:
   if (this.enabled_ && this.video_.paused && !this.isSeeking_) {
     this.playPauseButton_.textContent = 'play_arrow';
@@ -608,17 +608,20 @@ ShakaControls.prototype.onCastClick_ = function() {
     this.castProxy_.suggestDisconnect();
   } else {
     this.castButton_.disabled = true;
-    // Disable the load button, to prevent the users from trying to load an
-    // asset while the cast proxy is connecting.
+    // Disable the load/unload buttons, to prevent the users from trying to load
+    // an asset while the cast proxy is connecting.
     // That can lead to strange, erratic behavior.
     document.getElementById('loadButton').disabled = true;
+    document.getElementById('unloadButton').disabled = true;
     this.castProxy_.cast().then(function() {
       document.getElementById('loadButton').disabled = false;
+      document.getElementById('unloadButton').disabled = false;
       this.castButton_.disabled = false;
       // Success!
     }.bind(this), function(error) {
       this.castButton_.disabled = false;
       document.getElementById('loadButton').disabled = false;
+      document.getElementById('unloadButton').disabled = false;
       if (error.code != shaka.util.Error.Code.CAST_CANCELED_BY_USER) {
         this.onError_(error);
       }

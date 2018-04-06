@@ -240,15 +240,16 @@ shakaExtern.TextParser = function() {};
  * A collection of time offsets used to adjust text cue times.
  *
  * @typedef {{
- *   periodStart : number,
- *   segmentStart : number,
- *   segmentEnd : number
+ *   periodStart: number,
+ *   segmentStart: ?number,
+ *   segmentEnd: number
  * }}
  *
  * @property {number} periodStart
  *     The absolute start time of the period in seconds.
- * @property {number} segmentStart
+ * @property {?number} segmentStart
  *     The absolute start time of the segment in seconds.
+ *     Null if the manifest does not provide this information, such as in HLS.
  * @property {number} segmentEnd
  *     The absolute end time of the segment in seconds.
  *
@@ -261,7 +262,7 @@ shakaExtern.TextParser.TimeContext;
  * Parse an initialization segment. Some formats do not have init
  * segments so this won't always be called.
  *
- * @param {!ArrayBuffer} data
+ * @param {!Uint8Array} data
  *    The data that makes up the init segment.
  *
  * @exportDoc
@@ -272,7 +273,7 @@ shakaExtern.TextParser.prototype.parseInit = function(data) {};
 /**
  * Parse a media segment and return the cues that make up the segment.
  *
- * @param {!ArrayBuffer} data
+ * @param {!Uint8Array} data
  *    The next section of buffer.
  * @param {shakaExtern.TextParser.TimeContext} timeContext
  *    The time information that should be used to adjust the times values
@@ -299,6 +300,13 @@ shakaExtern.TextParserPlugin;
  * @exportDoc
  */
 shakaExtern.TextDisplayer = function() {};
+
+
+/**
+ * @override
+ * @exportDoc
+ */
+shakaExtern.TextDisplayer.prototype.destroy = function() {};
 
 
 /**

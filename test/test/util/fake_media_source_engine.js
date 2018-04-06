@@ -109,7 +109,7 @@ shaka.test.FakeMediaSourceEngine = function(segmentData, opt_drift) {
 
   /** @type {!jasmine.Spy} */
   this.bufferedAheadOf = jasmine.createSpy('bufferedAheadOf')
-                   .and.callFake(this.bufferedAheadOfImpl_.bind(this));
+                   .and.callFake(this.bufferedAheadOfImpl.bind(this));
 
   /** @type {!jasmine.Spy} */
   this.setStreamProperties = jasmine.createSpy('setStreamProperties')
@@ -211,9 +211,8 @@ shaka.test.FakeMediaSourceEngine.prototype.isBufferedImpl_ =
  * @param {string} type
  * @param {number} start
  * @return {number}
- * @private
  */
-shaka.test.FakeMediaSourceEngine.prototype.bufferedAheadOfImpl_ = function(
+shaka.test.FakeMediaSourceEngine.prototype.bufferedAheadOfImpl = function(
     type, start) {
   if (this.segments[type] === undefined) throw new Error('unexpected type');
 
@@ -263,7 +262,7 @@ shaka.test.FakeMediaSourceEngine.prototype.appendBufferImpl = function(
     if (i >= 0) {
       // 'trickvideo' value is only used for testing.
       // Cast to the ContentType enum for compatibility.
-      type = /**@type {shaka.util.ManifestParserUtils.ContentType} */(
+      type = /** @type {shaka.util.ManifestParserUtils.ContentType} */(
           'trickvideo');
     }
   }
@@ -286,16 +285,14 @@ shaka.test.FakeMediaSourceEngine.prototype.appendBufferImpl = function(
     if (i >= 0) {
       // 'trickvideo' value is only used for testing.
       // Cast to the ContentType enum for compatibility.
-      type = /**@type {shaka.util.ManifestParserUtils.ContentType} */(
+      type = /** @type {shaka.util.ManifestParserUtils.ContentType} */(
           'trickvideo');
     }
   }
   if (i < 0)
     throw new Error('unexpected data');
 
-  expect(startTime).toBe(
-      this.segmentData[type].segmentStartTimes[i] +
-      this.segmentData[type].segmentPeriodTimes[i]);
+  expect(startTime).toBe(this.segmentData[type].segmentStartTimes[i]);
   expect(endTime).toBe(startTime + this.segmentData[type].segmentDuration);
 
   // Verify that the segment is aligned.
@@ -358,7 +355,8 @@ shaka.test.FakeMediaSourceEngine.prototype.clearImpl_ = function(type) {
     // 'trickvideo' value is only used for testing.
     // Cast to the ContentType enum for compatibility.
     this.clearImpl_(
-        /**@type {shaka.util.ManifestParserUtils.ContentType} */('trickvideo'));
+        /** @type {shaka.util.ManifestParserUtils.ContentType} */(
+            'trickvideo'));
   }
 
   return Promise.resolve();

@@ -1,5 +1,5 @@
 This directory contains the scripts used to build and test Shaka Player.  These
-scripts can run on any platform that supports python v2.7 and JRE 7+.
+scripts can run on any platform that supports python v2.7 and JRE 8+.
 
 * `all.py` simply runs `gendeps.py`, `check.py`, and `build.py`.  Will forward
   `--force` to `build.py`.
@@ -19,7 +19,7 @@ scripts can run on any platform that supports python v2.7 and JRE 7+.
 All the scripts here use two environment variables:
 
 * `PRINT_ARGUMENTS` if set, will print the command-line to subprocesses.
-* `RAUSE_INTERRUPT` if set, will raise interrupts rather than swallowing them.
+* `RAISE_INTERRUPT` if set, will raise interrupts rather than swallowing them.
 
 ```shell
 $ PRINT_ARGUMENTS=1 build.py

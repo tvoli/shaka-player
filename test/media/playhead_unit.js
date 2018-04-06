@@ -119,6 +119,14 @@ describe('Playhead', function() {
   /** @type {!jasmine.Spy} */
   var onEvent;
 
+  beforeAll(function() {
+    jasmine.clock().install();
+  });
+
+  afterAll(function() {
+    jasmine.clock().uninstall();
+  });
+
   beforeEach(function() {
     video = new shaka.test.FakeVideo();
     timeline = new shaka.test.FakePresentationTimeline();
@@ -127,12 +135,13 @@ describe('Playhead', function() {
     onEvent = jasmine.createSpy('onEvent');
 
     timeline.isLive.and.returnValue(false);
-    timeline.getSegmentAvailabilityStart.and.returnValue(5);
-    timeline.getSegmentAvailabilityEnd.and.returnValue(60);
+    timeline.getSeekRangeStart.and.returnValue(5);
+    timeline.getSeekRangeEnd.and.returnValue(60);
+    timeline.getDuration.and.returnValue(60);
 
     // These tests should not cause these methods to be invoked.
-    timeline.getSegmentAvailabilityDuration.and.throwError(new Error());
-    timeline.getDuration.and.throwError(new Error());
+    timeline.getSegmentAvailabilityStart.and.throwError(new Error());
+    timeline.getSegmentAvailabilityEnd.and.throwError(new Error());
     timeline.setDuration.and.throwError(new Error());
 
     manifest = {
@@ -149,10 +158,12 @@ describe('Playhead', function() {
       failureCallback: function() {},
       bufferBehind: 15,
       ignoreTextStreamFailures: false,
+      alwaysStreamText: false,
       useRelativeCueTimestamps: false,
       startAtSegmentBoundary: false,
       smallGapLimit: 0.5,
-      jumpLargeGaps: false
+      jumpLargeGaps: false,
+      durationBackoff: 1
     };
   });
 
@@ -161,6 +172,28 @@ describe('Playhead', function() {
   });
 
   describe('getTime', function() {
+    it('returns current time when the video is paused', function() {
+      video.readyState = HTMLMediaElement.HAVE_METADATA;
+      playhead = new shaka.media.Playhead(
+          video,
+          manifest,
+          config,
+          5 /* startTime */,
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
+
+      expect(video.currentTime).toBe(5);
+      expect(playhead.getTime()).toBe(5);
+
+      // Simulate pausing.
+      video.paused = true;
+      timeline.getSeekRangeStart.and.returnValue(10);
+      timeline.getSeekRangeEnd.and.returnValue(70);
+
+      expect(video.currentTime).toBe(5);
+      expect(playhead.getTime()).toBe(5);
+    });
+
     it('returns the correct time when readyState starts at 0', function() {
       playhead = new shaka.media.Playhead(
           video,
@@ -221,8 +254,7 @@ describe('Playhead', function() {
       video.readyState = HTMLMediaElement.HAVE_METADATA;
       timeline.isLive.and.returnValue(true);
       timeline.getDuration.and.returnValue(Infinity);
-      timeline.getSegmentAvailabilityStart.and.returnValue(0);
-      timeline.getSegmentAvailabilityEnd.and.returnValue(60);
+      timeline.getSeekRangeStart.and.returnValue(0);
       timeline.getSeekRangeEnd.and.returnValue(60);
 
       playhead = new shaka.media.Playhead(
@@ -230,6 +262,78 @@ describe('Playhead', function() {
           Util.spyFunc(onEvent));
 
       expect(playhead.getTime()).toBe(0);
+    });
+
+    it('bumps startTime back from duration', function() {
+      video.readyState = HTMLMediaElement.HAVE_METADATA;
+      timeline.isLive.and.returnValue(false);
+      timeline.getSeekRangeStart.and.returnValue(0);
+      timeline.getSeekRangeEnd.and.returnValue(60);
+      timeline.getDuration.and.returnValue(60);
+
+      playhead = new shaka.media.Playhead(
+          video, manifest, config, 60 /* startTime */, Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
+
+      expect(playhead.getTime()).toBe(59);  // duration - durationBackoff
+      expect(video.currentTime).toBe(59);  // duration - durationBackoff
+    });
+
+    it('does not change currentTime if it\'s not 0', function() {
+      playhead = new shaka.media.Playhead(
+          video,
+          manifest,
+          config,
+          5 /* startTime */,
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
+
+      expect(video.addEventListener).toHaveBeenCalledWith(
+          'loadedmetadata', jasmine.any(Function), false);
+
+      expect(playhead.getTime()).toBe(5);
+      expect(video.currentTime).toBe(0);
+
+      video.currentTime = 8;
+      video.readyState = HTMLMediaElement.HAVE_METADATA;
+      video.on['loadedmetadata']();
+
+      // Delay to let Playhead batch up changes to currentTime and observe.
+      jasmine.clock().tick(1000);
+      expect(video.currentTime).toBe(8);
+
+    });
+
+    // This is important for recovering from drift.
+    // See: https://github.com/google/shaka-player/issues/1105
+    // TODO: Re-evaluate after https://github.com/google/shaka-player/issues/999
+    it('does not change once the initial position is set', function() {
+      timeline.isLive.and.returnValue(true);
+      timeline.getDuration.and.returnValue(Infinity);
+      timeline.getSeekRangeStart.and.returnValue(0);
+      timeline.getSeekRangeEnd.and.returnValue(60);
+      timeline.getSeekRangeEnd.and.returnValue(60);
+
+      playhead = new shaka.media.Playhead(
+          video,
+          manifest,
+          config,
+          null /* startTime */,
+          Util.spyFunc(onSeek),
+          Util.spyFunc(onEvent));
+
+      expect(video.addEventListener).toHaveBeenCalledWith(
+          'loadedmetadata', jasmine.any(Function), false);
+
+      expect(playhead.getTime()).toBe(60);
+      expect(video.currentTime).toBe(0);
+
+      // Simulate time passing and the live edge changing.
+      timeline.getSeekRangeStart.and.returnValue(10);
+      timeline.getSeekRangeEnd.and.returnValue(70);
+      timeline.getSeekRangeEnd.and.returnValue(70);
+
+      expect(playhead.getTime()).toBe(60);
     });
   });  // getTime
 
@@ -239,9 +343,9 @@ describe('Playhead', function() {
     video.buffered = createFakeBuffered([{start: 25, end: 55}]);
 
     timeline.isLive.and.returnValue(true);
-    timeline.getSegmentAvailabilityStart.and.returnValue(5);
-    timeline.getSegmentAvailabilityEnd.and.returnValue(60);
-    timeline.getSegmentAvailabilityDuration.and.returnValue(30);
+    timeline.getDuration.and.returnValue(Infinity);
+    timeline.getSeekRangeStart.and.returnValue(5);
+    timeline.getSeekRangeEnd.and.returnValue(60);
 
     playhead = new shaka.media.Playhead(
         video,
@@ -336,8 +440,8 @@ describe('Playhead', function() {
     onSeek.calls.reset();
 
     // Seek with safe == end
-    timeline.getSegmentAvailabilityEnd.and.returnValue(12);
-    timeline.getSafeAvailabilityStart.and.returnValue(12);
+    timeline.getSeekRangeEnd.and.returnValue(12);
+    timeline.getSafeSeekRangeStart.and.returnValue(12);
 
     // Seek before start
     video.currentTime = 4;
@@ -369,7 +473,7 @@ describe('Playhead', function() {
     expect(onSeek).not.toHaveBeenCalled();
     video.on['seeking']();
     expect(onSeek).toHaveBeenCalled();
-  });
+  });  // clamps playhead after seeking for live
 
   it('clamps playhead after seeking for VOD', function() {
     video.readyState = HTMLMediaElement.HAVE_METADATA;
@@ -377,10 +481,10 @@ describe('Playhead', function() {
     video.buffered = createFakeBuffered([{start: 25, end: 55}]);
 
     timeline.isLive.and.returnValue(false);
-    timeline.getSegmentAvailabilityStart.and.returnValue(5);
-    timeline.getSafeAvailabilityStart.and.returnValue(5);
-    timeline.getSegmentAvailabilityEnd.and.returnValue(60);
-    timeline.getSegmentAvailabilityDuration.and.returnValue(null);
+    timeline.getSeekRangeStart.and.returnValue(5);
+    timeline.getSafeSeekRangeStart.and.returnValue(5);
+    timeline.getSeekRangeEnd.and.returnValue(60);
+    timeline.getDuration.and.returnValue(60);
 
     playhead = new shaka.media.Playhead(
         video,
@@ -397,8 +501,8 @@ describe('Playhead', function() {
     // Seek past end.
     video.currentTime = 120;
     video.on['seeking']();
-    expect(video.currentTime).toBe(60);
-    expect(playhead.getTime()).toBe(60);
+    expect(video.currentTime).toBe(59);  // duration - durationBackoff
+    expect(playhead.getTime()).toBe(59);  // duration - durationBackoff
     expect(onSeek).not.toHaveBeenCalled();
     video.on['seeking']();
     expect(onSeek).toHaveBeenCalled();
@@ -413,16 +517,27 @@ describe('Playhead', function() {
     expect(onSeek).not.toHaveBeenCalled();
     video.on['seeking']();
     expect(onSeek).toHaveBeenCalled();
-  });
+  });  // clamps playhead after seeking for VOD
 
   it('handles live manifests with no seek range', function() {
     video.buffered = createFakeBuffered([{start: 1000, end: 1030}]);
     video.readyState = HTMLMediaElement.HAVE_METADATA;
 
     timeline.isLive.and.returnValue(true);
-    timeline.getSegmentAvailabilityStart.and.returnValue(1000);
-    timeline.getSegmentAvailabilityEnd.and.returnValue(1000);
-    timeline.getSegmentAvailabilityDuration.and.returnValue(1000);
+    timeline.getDuration.and.returnValue(Infinity);
+    timeline.getSeekRangeStart.and.returnValue(1000);
+    timeline.getSeekRangeEnd.and.returnValue(1000);
+
+    let currentTime = 0;
+    let seekCount = 0;
+    Object.defineProperty(video, 'currentTime', {
+      get: () => currentTime,
+      set: (val) => {
+        currentTime = val;
+        seekCount++;
+        setTimeout(video.on['seeking'], 5);
+      },
+    });
 
     playhead = new shaka.media.Playhead(
         video,
@@ -431,18 +546,31 @@ describe('Playhead', function() {
         5 /* startTime */,
         Util.spyFunc(onSeek),
         Util.spyFunc(onEvent));
-    expect(video.currentTime).toBe(1000);
-    video.on['seeking']();
+    expect(currentTime).toBe(1000);
+    seekCount = 0;
 
     // The availability window slips ahead.
-    timeline.getSegmentAvailabilityStart.and.returnValue(1030);
-    timeline.getSegmentAvailabilityEnd.and.returnValue(1030);
+    timeline.getSeekRangeStart.and.returnValue(1030);
+    timeline.getSeekRangeEnd.and.returnValue(1030);
     video.on['waiting']();
-    // We expect this to move to 15 seconds ahead of the start of the
-    // availability window, due to the rebuffering goal (10s) and the 5s
-    // for the Chromecast.
-    expect(video.currentTime).toBe(1045);
-  });
+    jasmine.clock().tick(500);
+    expect(currentTime).toBe(1030);
+    expect(seekCount).toBe(1);
+
+    // It should allow a small buffer around the seek range.
+    seekCount = 0;
+    currentTime = 1030.062441;
+    jasmine.clock().tick(500);
+    currentTime = 1029.9233;
+    jasmine.clock().tick(500);
+    expect(seekCount).toBe(0);
+
+    // Got too far away.
+    currentTime = 1029;
+    jasmine.clock().tick(500);
+    expect(currentTime).toBe(1030);
+    expect(seekCount).toBe(1);
+  });  // handles live manifests with no seek range
 
   describe('clamps playhead after resuming', function() {
     beforeEach(function() {
@@ -453,9 +581,9 @@ describe('Playhead', function() {
 
     it('(live case)', function() {
       timeline.isLive.and.returnValue(true);
-      timeline.getSegmentAvailabilityStart.and.returnValue(5);
-      timeline.getSegmentAvailabilityEnd.and.returnValue(60);
-      timeline.getSegmentAvailabilityDuration.and.returnValue(30);
+      timeline.getDuration.and.returnValue(Infinity);
+      timeline.getSeekRangeStart.and.returnValue(5);
+      timeline.getSeekRangeEnd.and.returnValue(60);
 
       playhead = new shaka.media.Playhead(
           video,
@@ -470,13 +598,12 @@ describe('Playhead', function() {
       expect(playhead.getTime()).toBe(5);
 
       // Simulate pausing.
-      timeline.getSegmentAvailabilityStart.and.returnValue(10);
-      timeline.getSegmentAvailabilityEnd.and.returnValue(70);
-      timeline.getSegmentAvailabilityDuration.and.returnValue(30);
+      timeline.getSeekRangeStart.and.returnValue(10);
+      timeline.getSeekRangeEnd.and.returnValue(70);
 
       // Because this is buffered, the playhead should move to (start + 5),
       // which will cause a 'seeking' event.
-      video.on['playing']();
+      jasmine.clock().tick(500);
       expect(video.currentTime).toBe(15);
       video.on['seeking']();
       expect(playhead.getTime()).toBe(15);
@@ -485,10 +612,10 @@ describe('Playhead', function() {
 
     it('(VOD case)', function() {
       timeline.isLive.and.returnValue(false);
-      timeline.getSegmentAvailabilityStart.and.returnValue(5);
-      timeline.getSafeAvailabilityStart.and.returnValue(5);
-      timeline.getSegmentAvailabilityEnd.and.returnValue(60);
-      timeline.getSegmentAvailabilityDuration.and.returnValue(30);
+      timeline.getSeekRangeStart.and.returnValue(5);
+      timeline.getSafeSeekRangeStart.and.returnValue(5);
+      timeline.getSeekRangeEnd.and.returnValue(60);
+      timeline.getDuration.and.returnValue(60);
 
       playhead = new shaka.media.Playhead(
           video,
@@ -503,12 +630,11 @@ describe('Playhead', function() {
       expect(playhead.getTime()).toBe(5);
 
       // Simulate pausing.
-      timeline.getSegmentAvailabilityStart.and.returnValue(10);
-      timeline.getSafeAvailabilityStart.and.returnValue(10);
-      timeline.getSegmentAvailabilityEnd.and.returnValue(70);
-      timeline.getSegmentAvailabilityDuration.and.returnValue(30);
+      timeline.getSeekRangeStart.and.returnValue(10);
+      timeline.getSafeSeekRangeStart.and.returnValue(10);
+      timeline.getSeekRangeEnd.and.returnValue(70);
 
-      video.on['playing']();
+      jasmine.clock().tick(500);
       expect(video.currentTime).toBe(10);
       video.on['seeking']();
       expect(playhead.getTime()).toBe(10);
@@ -516,20 +642,46 @@ describe('Playhead', function() {
     });
   });  // clamps playhead after resuming
 
+  it('clamps playhead even before seeking completes', function() {
+    video.readyState = HTMLMediaElement.HAVE_METADATA;
+
+    video.buffered = createFakeBuffered([{start: 25, end: 55}]);
+
+    timeline.isLive.and.returnValue(true);
+    timeline.getDuration.and.returnValue(Infinity);
+    timeline.getSeekRangeStart.and.returnValue(5);
+    timeline.getSeekRangeEnd.and.returnValue(60);
+
+    playhead = new shaka.media.Playhead(
+        video,
+        manifest,
+        config,
+        30 /* startTime, middle of the seek range */,
+        Util.spyFunc(onSeek),
+        Util.spyFunc(onEvent));
+
+    video.currentTime = 0;
+    video.seeking = true;
+    // "video.seeking" stays true until the buffered range intersects with
+    // "video.currentTime".  Playhead should correct anyway.
+    video.on['seeking']();
+
+    // Let the Playhead poll the seek range and push us back inside it.
+    jasmine.clock().tick(1000);
+
+    // There is some "safety zone" at the front of the range, so we may seek to
+    // anything >= the seek range start (5).
+    expect(video.currentTime).not.toBeLessThan(5);
+    expect(playhead.getTime()).not.toBeLessThan(5);
+  });  // clamps playhead even before seeking completes
+
   describe('gap jumping', function() {
-    beforeAll(function() {
-      jasmine.clock().install();
-    });
-
-    afterAll(function() {
-      jasmine.clock().uninstall();
-    });
-
     beforeEach(function() {
       timeline.isLive.and.returnValue(false);
-      timeline.getSafeAvailabilityStart.and.returnValue(0);
-      timeline.getSegmentAvailabilityStart.and.returnValue(0);
-      timeline.getSegmentAvailabilityEnd.and.returnValue(60);
+      timeline.getSafeSeekRangeStart.and.returnValue(0);
+      timeline.getSeekRangeStart.and.returnValue(0);
+      timeline.getSeekRangeEnd.and.returnValue(60);
+      timeline.getDuration.and.returnValue(60);
 
       config.smallGapLimit = 1;
     });
@@ -811,6 +963,17 @@ describe('Playhead', function() {
           expectEvent: false
         });
 
+        seekTest('will wait to jump when seeking backwards', {
+          // [20-30]
+          buffered: [{start: 20, end: 30}],
+          // The lack of newBuffered means we won't append any segments, so we
+          // should still be waiting.
+          start: 24,
+          seekTo: 4,
+          expectedEndTime: 4,
+          expectEvent: false
+        });
+
         seekTest('will jump when seeking backwards into gap', {
           // [2-10], [20-30]
           buffered: [{start: 20, end: 30}],
@@ -868,6 +1031,69 @@ describe('Playhead', function() {
       });  // with large gaps
     });  // with unbuffered seeks
 
+    it('doesn\'t gap jump if the seeking event is late', function() {
+      var buffered = [{start: 10, end: 20}];
+      video.buffered = createFakeBuffered(buffered);
+      video.currentTime = 12;
+      video.readyState = HTMLMediaElement.HAVE_ENOUGH_DATA;
+
+      config.jumpLargeGaps = true;
+      playhead = new shaka.media.Playhead(video, manifest, config, 12,
+                                          Util.spyFunc(onSeek),
+                                          Util.spyFunc(onEvent));
+
+      jasmine.clock().tick(1000);
+      expect(onEvent).not.toHaveBeenCalled();
+
+      // Append a segment before seeking.
+      playhead.onSegmentAppended();
+
+      // Seek backwards but wait briefly to fire the seeking event.
+      video.currentTime = 3;
+      video.readyState = HTMLMediaElement.HAVE_METADATA;
+      video.seeking = true;
+      jasmine.clock().tick(600);
+      video.on['seeking']();
+
+      // There should NOT have been a gap jump.
+      expect(video.currentTime).toBe(3);
+    });
+
+    it('works with rounding errors when seeking', function() {
+      // If the browser sets the time to slightly before where we seek to, we
+      // shouldn't get stuck in an infinite loop trying to jump the tiny gap.
+      // https://github.com/google/shaka-player/issues/1309
+      let buffered = [{start: 10, end: 20}];
+      video.buffered = createFakeBuffered(buffered);
+      video.readyState = HTMLMediaElement.HAVE_METADATA;
+
+      // Track the number of times we seeked.
+      let seekCount = 0;
+      let currentTime = 0;
+      Object.defineProperty(video, 'currentTime', {
+        get: function() { return currentTime - 0.00001; },
+        set: function(time) {
+          seekCount++;
+          currentTime = time;
+          setTimeout(function() {
+            video.on['seeking']();
+            playhead.onSegmentAppended();
+          }, 5);
+        },
+      });
+
+      config.jumpLargeGaps = true;
+      playhead = new shaka.media.Playhead(video, manifest, config, 0,
+                                          Util.spyFunc(onSeek),
+                                          Util.spyFunc(onEvent));
+
+      playhead.onSegmentAppended();
+      jasmine.clock().tick(1000);
+
+      expect(seekCount).toBe(1);
+      expect(currentTime).toBe(10);
+    });
+
     /**
      * @param {string} name
      * @param {SeekTestInfo} data
@@ -898,9 +1124,12 @@ describe('Playhead', function() {
         // Seek to the given position and update ready state.
         video.currentTime = data.seekTo;
         video.readyState = calculateReadyState(data.buffered, data.seekTo);
+        video.seeking = true;
         video.on['seeking']();
         if (video.readyState < HTMLMediaElement.HAVE_ENOUGH_DATA)
           video.on['waiting']();
+        else
+          video.seeking = false;
         jasmine.clock().tick(1000);
 
         if (data.newBuffered) {
@@ -911,8 +1140,11 @@ describe('Playhead', function() {
 
           // Now StreamingEngine will buffer the new content and tell playhead
           // about it.
+          expect(video.currentTime).toBe(data.seekTo);
           video.buffered = createFakeBuffered(data.newBuffered);
           video.readyState = calculateReadyState(data.newBuffered, data.seekTo);
+          if (video.readyState >= HTMLMediaElement.HAVE_ENOUGH_DATA)
+            video.seeking = false;
           playhead.onSegmentAppended();
           jasmine.clock().tick(1000);
         }

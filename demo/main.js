@@ -63,6 +63,10 @@ shakaDemo.hashCanChange_ = false;
 shakaDemo.suppressHashChangeEvent_ = false;
 
 
+/** @private {(number|undefined)} */
+shakaDemo.startTime_ = undefined;
+
+
 /**
  * @private
  * @const {string}
@@ -79,11 +83,11 @@ shakaDemo.audioOnlyPoster_ =
 
 
 /**
- * The registered ID of the v2.2 Chromecast receiver demo.
+ * The registered ID of the v2.3 Chromecast receiver demo.
  * @const {string}
  * @private
  */
-shakaDemo.CC_APP_ID_ = '91580C19';
+shakaDemo.CC_APP_ID_ = 'A15A181D';
 
 
 /**
@@ -125,9 +129,10 @@ shakaDemo.init = function() {
       errorDisplayLink.textContent = error;
     }
 
-    // Disable the load button.
+    // Disable the load/unload buttons.
     var loadButton = document.getElementById('loadButton');
     loadButton.disabled = true;
+    document.getElementById('unloadButton').disabled = true;
 
     // Hide the error message's close button.
     var errorDisplayCloseButton =
@@ -149,6 +154,31 @@ shakaDemo.init = function() {
     var errorDisplay = document.getElementById('errorDisplay');
     errorDisplay.style.display = 'block';
   } else {
+    if (navigator.serviceWorker) {
+      console.debug('Registering service worker.');
+      navigator.serviceWorker.register('service_worker.js')
+          .then(function(registration) {
+            console.debug('Service worker registered!', registration.scope);
+          }).catch(function(error) {
+            console.error('Service worker registration failed!', error);
+          });
+    }
+
+    /** @param {Event} event */
+    var offlineStatusChanged = function(event) {
+      var version = document.getElementById('version');
+      var text = version.textContent;
+      text = text.replace(' (offline)', '');
+      if (!navigator.onLine) {
+        text += ' (offline)';
+      }
+      version.textContent = text;
+      shakaDemo.computeDisabledAssets();
+    };
+    window.addEventListener('online', offlineStatusChanged);
+    window.addEventListener('offline', offlineStatusChanged);
+    offlineStatusChanged(null);
+
     shaka.Player.probeSupport().then(function(support) {
       shakaDemo.support_ = support;
 
@@ -184,6 +214,10 @@ shakaDemo.init = function() {
         shakaDemo.postBrowserCheckParams_(params);
         window.addEventListener('hashchange', shakaDemo.updateFromHash_);
       });
+    }).catch(function(error) {
+      // Some part of the setup of the demo app threw an error.
+      // Notify the user of this.
+      shakaDemo.onError_(/** @type {!shaka.util.Error} */ (error));
     });
   }
 };
@@ -244,6 +278,9 @@ shakaDemo.preBrowserCheckParams_ = function(params) {
   if ('license' in params) {
     document.getElementById('licenseServerInput').value = params['license'];
   }
+  if ('certificate' in params) {
+    document.getElementById('certificateInput').value = params['certificate'];
+  }
   if ('logtoscreen' in params) {
     document.getElementById('logToScreen').checked = true;
     // Call onLogChange_ manually, because setting checked
@@ -256,7 +293,11 @@ shakaDemo.preBrowserCheckParams_ = function(params) {
     document.body.className = 'noinput';
   }
   if ('play' in params) {
-    document.getElementById('enableAutoplay').checked = true;
+    document.getElementById('enableLoadOnRefresh').checked = true;
+  }
+  if ('startTime' in params) {
+    // Used manually for debugging start time issues in live streams.
+    shakaDemo.startTime_ = parseInt(params['startTime'], 10);
   }
   // shaka.log is not set if logging isn't enabled.
   // I.E. if using the compiled version of shaka.
@@ -405,6 +446,7 @@ shakaDemo.hashShouldChange_ = function() {
     return;
 
   var params = [];
+  var oldParams = shakaDemo.getParams_();
 
   // Save the current asset.
   var assetUri;
@@ -438,12 +480,21 @@ shakaDemo.hashShouldChange_ = function() {
   } else {
     if (assetList.selectedIndex == assetList.length - 1) {
       // It's a custom asset.
-      if (document.getElementById('manifestInput').value) {
-        params.push('asset=' + document.getElementById('manifestInput').value);
+      var manifestInputValue = document.getElementById('manifestInput').value;
+      if (manifestInputValue) {
+        params.push('asset=' + manifestInputValue);
       }
-      if (document.getElementById('licenseServerInput').value) {
-        params.push('license=' +
-            document.getElementById('licenseServerInput').value);
+
+      var licenseInputValue =
+          document.getElementById('licenseServerInput').value;
+      if (licenseInputValue) {
+        params.push('license=' + licenseInputValue);
+      }
+
+      var certificateInputValue =
+          document.getElementById('certificateInput').value;
+      if (certificateInputValue) {
+        params.push('certificate=' + certificateInputValue);
       }
     } else {
       // It's a default asset.
@@ -486,20 +537,16 @@ shakaDemo.hashShouldChange_ = function() {
       params.push(logLevel);
     }
   }
-  if (document.getElementById('enableAutoplay').checked) {
+  if (document.getElementById('enableLoadOnRefresh').checked) {
     params.push('play');
   }
 
-  // This parameter must be added manually, so preserve it.
-  if ('noinput' in shakaDemo.getParams_()) {
+  // These parameters must be added manually, so preserve them.
+  if ('noinput' in oldParams) {
     params.push('noinput');
   }
-
-  // This parameter must be added manually, so preserve it.
-  // This one is only used by the loader in load.js to decide which version of
-  // the library to load.
-  if ('compiled' in shakaDemo.getParams_()) {
-    params.push('compiled');
+  if (shakaDemo.startTime_ != undefined) {
+    params.push('startTime=' + shakaDemo.startTime_);
   }
   if ('debug_compiled' in shakaDemo.getParams_()) {
     params.push('debug_compiled');
@@ -514,6 +561,46 @@ shakaDemo.hashShouldChange_ = function() {
       document.getElementById('drmSettingsAudioRobustness').value;
   if (audioRobustness)
     params.push('audioRobustness=' + audioRobustness);
+
+  // These parameters must be added manually, so preserve them.
+  // These are only used by the loader in load.js to decide which version of
+  // the library to load.
+  var buildType = 'uncompiled';
+  var strippedHash = '#' + params.join(';');
+  if ('build' in oldParams) {
+    params.push('build=' + oldParams['build']);
+    buildType = oldParams['build'];
+  } else if ('compiled' in oldParams) {
+    params.push('build=compiled');
+    buildType = 'compiled';
+  }
+
+  (['compiled', 'debug_compiled', 'uncompiled']).forEach(function(type) {
+    var elem = document.getElementById(type + '_link');
+    if (buildType == type) {
+      elem.classList.add('disabled_link');
+      elem.removeAttribute('href');
+      elem.title = 'currently selected';
+    } else {
+      elem.classList.remove('disabled_link');
+      elem.onclick = function() {
+        location.hash = strippedHash + ';build=' + type;
+        location.reload();
+        return false;
+      };
+    }
+  });
+
+  // Check if ES6 is usable by evaluating arrow function syntax.
+  try {
+    eval('()=>{}');
+  } catch (e) {
+    // If ES6 is not usable, neither is the uncompiled version of the app.
+    var uncompiledLink = document.getElementById('uncompiled_link');
+    uncompiledLink.classList.add('disabled_link');
+    uncompiledLink.removeAttribute('href');
+    uncompiledLink.title = 'requires ES6';
+  }
 
   var newHash = '#' + params.join(';');
   if (newHash != location.hash) {
@@ -606,5 +693,17 @@ if (document.readyState == 'loading' ||
     window.addEventListener('load', shakaDemo.init);
   }
 } else {
-  shakaDemo.init();
+  /**
+   * Poll for Shaka Player on window.  On IE 11, the document is "ready", but
+   * there are still deferred scripts being loaded.  This does not occur on
+   * Chrome or Edge, which set the document's state at the correct time.
+   */
+  var pollForShakaPlayer = function() {
+    if (window.shaka) {
+      shakaDemo.init();
+    } else {
+      setTimeout(pollForShakaPlayer, 100);
+    }
+  };
+  pollForShakaPlayer();
 }

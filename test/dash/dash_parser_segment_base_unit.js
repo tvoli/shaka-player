@@ -25,6 +25,16 @@ describe('DashParser SegmentBase', function() {
   var parser;
   /** @type {shakaExtern.ManifestParser.PlayerInterface} */
   var playerInterface;
+  /** @const {string} */
+  var indexSegmentUri = '/base/test/test/assets/index-segment.mp4';
+  /** @type {ArrayBuffer} */
+  var indexSegment;
+
+  beforeAll(function(done) {
+    shaka.test.Util.fetch(indexSegmentUri).then(function(data) {
+      indexSegment = data;
+    }).catch(fail).then(done);
+  });
 
   beforeEach(function() {
     fakeNetEngine = new shaka.test.FakeNetworkingEngine();
@@ -53,7 +63,8 @@ describe('DashParser SegmentBase', function() {
       '      </Representation>',
       '    </AdaptationSet>',
       '  </Period>',
-      '</MPD>'].join('\n');
+      '</MPD>',
+    ].join('\n');
 
     fakeNetEngine.setResponseMapAsText({
       'dummy://foo': source,
@@ -88,7 +99,8 @@ describe('DashParser SegmentBase', function() {
       '      <Representation bandwidth="1" />',
       '    </AdaptationSet>',
       '  </Period>',
-      '</MPD>'].join('\n');
+      '</MPD>',
+    ].join('\n');
 
     fakeNetEngine.setResponseMapAsText({
       'dummy://foo': source,
@@ -120,7 +132,8 @@ describe('DashParser SegmentBase', function() {
       '      <Representation bandwidth="1" />',
       '    </AdaptationSet>',
       '  </Period>',
-      '</MPD>'].join('\n');
+      '</MPD>',
+    ].join('\n');
 
     fakeNetEngine.setResponseMapAsText({
       'dummy://foo': source,
@@ -153,7 +166,8 @@ describe('DashParser SegmentBase', function() {
       '      </Representation>',
       '    </AdaptationSet>',
       '  </Period>',
-      '</MPD>'].join('\n');
+      '</MPD>',
+    ].join('\n');
 
     fakeNetEngine.setResponseMapAsText({
       'dummy://foo': source,
@@ -193,7 +207,8 @@ describe('DashParser SegmentBase', function() {
       '      </Representation>',
       '    </AdaptationSet>',
       '  </Period>',
-      '</MPD>'].join('\n');
+      '</MPD>',
+    ].join('\n');
 
     fakeNetEngine.setResponseMapAsText({
       'dummy://foo': source,
@@ -232,7 +247,8 @@ describe('DashParser SegmentBase', function() {
       '      </Representation>',
       '    </AdaptationSet>',
       '  </Period>',
-      '</MPD>'].join('\n');
+      '</MPD>',
+    ].join('\n');
 
     fakeNetEngine.setResponseMapAsText({
       'dummy://foo': source,
@@ -252,6 +268,42 @@ describe('DashParser SegmentBase', function() {
         .then(done);
   });
 
+  it('does not assume the same timescale as media', function(done) {
+    var source = [
+      '<MPD mediaPresentationDuration="PT75S">',
+      '  <Period>',
+      '    <AdaptationSet mimeType="video/mp4">',
+      '      <Representation bandwidth="1">',
+      '        <BaseURL>http://example.com/index.mp4</BaseURL>',
+      '        <SegmentBase indexRange="30-900" ',
+      '                     timescale="1000"',
+      '                     presentationTimeOffset="2000" />',
+      '      </Representation>',
+      '    </AdaptationSet>',
+      '  </Period>',
+      '</MPD>',
+    ].join('\n');
+
+    fakeNetEngine.setResponseMap({
+      'dummy://foo': shaka.util.StringUtils.toUTF8(source),
+      'http://example.com/index.mp4': indexSegment
+    });
+
+    var video;
+    parser.start('dummy://foo', playerInterface)
+        .then(function(manifest) {
+          video = manifest.periods[0].variants[0].video;
+          return video.createSegmentIndex();  // real data, should succeed
+        })
+        .then(function() {
+          var reference = video.getSegmentReference(0);
+          expect(reference.startTime).toEqual(0);  // clamped to 0 by fit()
+          expect(reference.endTime).toEqual(10);  // would be 12 without PTO
+        })
+        .catch(fail)
+        .then(done);
+  });
+
   describe('fails for', function() {
     it('unsupported container', function(done) {
       var source = [
@@ -264,7 +316,7 @@ describe('DashParser SegmentBase', function() {
         '      </Representation>',
         '    </AdaptationSet>',
         '  </Period>',
-        '</MPD>'
+        '</MPD>',
       ].join('\n');
       var error = new shaka.util.Error(
           shaka.util.Error.Severity.CRITICAL,
@@ -284,7 +336,7 @@ describe('DashParser SegmentBase', function() {
         '      </Representation>',
         '    </AdaptationSet>',
         '  </Period>',
-        '</MPD>'
+        '</MPD>',
       ].join('\n');
       var error = new shaka.util.Error(
           shaka.util.Error.Severity.CRITICAL,
@@ -306,7 +358,7 @@ describe('DashParser SegmentBase', function() {
         '      </Representation>',
         '    </AdaptationSet>',
         '  </Period>',
-        '</MPD>'
+        '</MPD>',
       ].join('\n');
       var error = new shaka.util.Error(
           shaka.util.Error.Severity.CRITICAL,

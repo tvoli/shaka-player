@@ -76,6 +76,42 @@ describe('DashParser SegmentTemplate', function() {
       ];
       Dash.testSegmentIndex(done, source, references);
     });
+
+    it('honors presentationTimeOffset', function(done) {
+      var source = Dash.makeSimpleManifestText([
+        '<SegmentTemplate media="s$Number$.mp4" duration="10"',
+        ' presentationTimeOffset="50" />'
+      ], 30 /* duration */);
+
+      fakeNetEngine.setResponseMapAsText({ 'dummy://foo': source });
+      parser.start('dummy://foo', playerInterface)
+          .then(function(manifest) {
+            expect(manifest.periods.length).toBe(1);
+            expect(manifest.periods[0].variants.length).toBe(1);
+
+            var stream = manifest.periods[0].variants[0].video;
+            expect(stream).toBeTruthy();
+            expect(stream.presentationTimeOffset).toBe(50);
+            expect(stream.getSegmentReference(0)).toEqual(
+                ManifestParser.makeReference('s1.mp4', 0, 0, 10, baseUri));
+            expect(stream.getSegmentReference(1)).toEqual(
+                ManifestParser.makeReference('s2.mp4', 1, 10, 20, baseUri));
+          })
+          .catch(fail).then(done);
+    });
+
+    it('handles segments larger than the period', function(done) {
+      var source = Dash.makeSimpleManifestText([
+        '<SegmentTemplate media="s$Number$.mp4" duration="60" />'
+      ], 30 /* duration */);
+      // The first segment is number 1 and position 0.
+      // Although the segment is 60 seconds long, it is clipped to the period
+      // duration of 30 seconds.
+      var references = [
+        ManifestParser.makeReference('s1.mp4', 0, 0, 30, baseUri)
+      ];
+      Dash.testSegmentIndex(done, source, references);
+    });
   });
 
   describe('index', function() {

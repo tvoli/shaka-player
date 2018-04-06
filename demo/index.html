@@ -18,7 +18,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="description" content="Shaka Player Demo">
-    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, maximum-scale=1">
+    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#ffffff">
 
@@ -35,23 +35,54 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto+Condensed">
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
 
-    <script src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
-    <script src="load.js"></script>
-    <script src="main.js"></script>
-    <script src="asset_section.js"></script>
-    <script src="configuration_section.js"></script>
-    <script src="info_section.js"></script>
-    <script src="log_section.js"></script>
-    <script src="offline_section.js"></script>
-    <script src="common/assets.js"></script>
-    <script src="common/demo_utils.js"></script>
-    <script src="common/controls.js"></script>
+    <script defer src="//www.gstatic.com/cv/js/sender/v1/cast_sender.js"></script>
+    <script defer src="../node_modules/mux.js/dist/mux.js"></script>
+
+    <script>
+COMPILED_JS = [
+  // The compiled library.
+  '../dist/shaka-player.compiled.js',
+  // The compiled demo.
+  '../dist/demo.compiled.js'
+];
+COMPILED_DEBUG_JS = [
+  // The compiled library, debug mode.
+  '../dist/shaka-player.compiled.debug.js',
+  // The compiled demo.
+  '../dist/demo.compiled.debug.js'
+];
+UNCOMPILED_JS = [
+  // Bootstrap the Shaka Player library through the Closure library.
+  '../third_party/closure/goog/base.js',
+  '../dist/deps.js',
+  // This file contains goog.require calls for all exported library classes.
+  '../shaka-player.uncompiled.js',
+  // These are the individual parts of the demo app.
+  'common/assets.js',
+  'common/controls.js',
+  'common/demo_utils.js',
+  'main.js',
+  'asset_section.js',
+  'configuration_section.js',
+  'info_section.js',
+  'log_section.js',
+  'offline_section.js'
+];
+    </script>
+
+    <!-- Load the compiled or uncompiled version of the code. -->
+    <script defer src="load.js"></script>
   </head>
   <body>
     <div id="container">
       <h1>Shaka Player <span id="version"></span></h1>
 
       <div class="input">
+        <p id="compiled_links">
+          <a href="#" id="uncompiled_link">uncompiled</a> |
+          <a href="#" id="debug_compiled_link">compiled (debug)</a> |
+          <a href="#" id="compiled_link">compiled (release)</a>
+        </p>
         <p>This is a demo of Google's Shaka Player, a JavaScript library for
            adaptive video streaming.</p>
 
@@ -79,10 +110,15 @@
             <label for="licenseServerInput">Custom license server:</label>
             <input id="licenseServerInput" type="text" class="flex-grow">
           </div>
+          <div class="flex">
+            <label for="certificateInput">Custom license certificate URL:</label>
+            <input id="certificateInput" type="text" class="flex-grow">
+          </div>
         </div>
 
         <div>
           <button id="loadButton">Load</button>
+          <button id="unloadButton">Unload</button>
         </div>
       </div>
 
@@ -146,8 +182,8 @@
           <input id="enableAdaptation" type="checkbox" checked>
         </div>
         <div>
-          <label for="enableAutoplay">Autoplay:</label>
-          <input id="enableAutoplay" type="checkbox">
+          <label for="enableLoadOnRefresh">Auto-load on page refresh:</label>
+          <input id="enableLoadOnRefresh" type="checkbox">
         </div>
         <div>
           <label for="logToScreen">Log to the screen:</label>

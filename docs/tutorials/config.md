@@ -42,7 +42,6 @@ player.getConfiguration();
        servers: Object
      manifest: Object
        dash: Object
-       hls: Object
        retryParameters: Object
      playRangeEnd: Infinity
      playRangeStart: 0
@@ -52,14 +51,19 @@ player.getConfiguration();
      streaming: Object
        bufferBehind: 30
        bufferingGoal: 10
+       durationBackoff: 1
        failureCallback: Function
        ignoreTextStreamFailures: false
+       alwaysStreamText: false
        jumpLargeGaps: false
        rebufferingGoal: 2
        retryParameters: Object
        smallGapLimit: 0.5
        startAtSegmentBoundary: false
+     textDisplayFactory: Function
 
+
+// Example configurations, all of which are arbitrary:
 
 // set audio language preference to Canadian French:
 player.configure({ preferredAudioLanguage: 'fr-CA' });

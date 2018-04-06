@@ -44,9 +44,9 @@ describe('DashParser ContentProtection', function() {
         clockSyncUri: '',
         customScheme: callback,
         ignoreDrmInfo: ignoreDrmInfo,
-        xlinkFailGracefully: false
-      },
-      hls: { defaultTimeOffset: 0 }
+        xlinkFailGracefully: false,
+        defaultPresentationDelay: 10
+      }
     });
     var playerEvents = {
       networkingEngine: netEngine,
@@ -228,7 +228,9 @@ describe('DashParser ContentProtection', function() {
         // Representation 1 key ID
         'deadbeeffeedbaadf00d000008675309',
         // Representation 2 key ID
-        'deadbeeffeedbaadf00d000008675309'])]);
+        'deadbeeffeedbaadf00d000008675309',
+      ])
+    ]);
     testDashParser(done, source, expected);
   });
 
@@ -249,8 +251,8 @@ describe('DashParser ContentProtection', function() {
       buildDrmInfo('com.widevine.alpha',
           ['deadbeeffeedbaadf00d000008675309'], // key Id
           ['bm8gaHVtYW4gY2FuIHJlYWQgYmFzZTY0IGRpcmVjdGx5'], // initData
-          ['deadbeeffeedbaadf00d000008675309'])] // key Id for initData
-    );
+          ['deadbeeffeedbaadf00d000008675309']) // key Id for initData
+    ]);
     testDashParser(done, source, expected);
   });
 
@@ -278,7 +280,9 @@ describe('DashParser ContentProtection', function() {
         // Representation 1 key ID
         'baadf00dfeeddeafbeef000004390116',
         // Representation 2 key ID
-        'baadf00dfeeddeafbeef018006492568'])]);
+        'baadf00dfeeddeafbeef018006492568',
+      ])
+    ]);
     testDashParser(done, source, expected);
   });
 
@@ -294,15 +298,14 @@ describe('DashParser ContentProtection', function() {
       '  <cenc:pssh>bm8gaHVtYW4gY2FuIHJlYWQgYmFzZTY0IGRpcmVjdGx5</cenc:pssh>',
       '</ContentProtection>'
     ], [], []);
-    var expected = buildExpectedManifest(
-        [
-          buildDrmInfo('com.widevine.alpha', [], [
-            'ZmFrZSBXaWRldmluZSBQU1NI'
-          ]),
-          buildDrmInfo('com.microsoft.playready', [], [
-            'bm8gaHVtYW4gY2FuIHJlYWQgYmFzZTY0IGRpcmVjdGx5'
-          ])
-        ]);
+    var expected = buildExpectedManifest([
+      buildDrmInfo('com.widevine.alpha', [], [
+        'ZmFrZSBXaWRldmluZSBQU1NI'
+      ]),
+      buildDrmInfo('com.microsoft.playready', [], [
+        'bm8gaHVtYW4gY2FuIHJlYWQgYmFzZTY0IGRpcmVjdGx5'
+      ])
+    ]);
     testDashParser(done, source, expected);
   });
 
@@ -510,11 +513,14 @@ describe('DashParser ContentProtection', function() {
       '  cenc:default_KID="DEADBEEF-FEED-BAAD-F00D-000008675309" />'
     ], [], []);
     var expected = buildExpectedManifest([
-      buildDrmInfo('', [  // placeholder: only unrecognized schemes found
-        // Representation 1 key ID
-        'deadbeeffeedbaadf00d000008675309',
-        // Representation 2 key ID
-        'deadbeeffeedbaadf00d000008675309'])]);
+      buildDrmInfo('', // placeholder: only unrecognized schemes found
+        [
+          // Representation 1 key ID
+          'deadbeeffeedbaadf00d000008675309',
+          // Representation 2 key ID
+          'deadbeeffeedbaadf00d000008675309',
+        ])
+    ]);
     testDashParser(done, source, expected);
   });
 
@@ -577,7 +583,9 @@ describe('DashParser ContentProtection', function() {
         // Representation 1 key ID
         'deadbeeffeedbaadf00d000008675309',
         // Representation 2 key ID
-        'baadf00dfeeddeafbeef000004390116'])]);
+        'baadf00dfeeddeafbeef000004390116',
+      ]),
+    ]);
     testDashParser(done, source, expected);
   });
 
@@ -605,7 +613,8 @@ describe('DashParser ContentProtection', function() {
       // Representation 1 key ID
       'deadbeeffeedbaadf00d000008675309',
       // Representation 2 key ID
-      'baadf00dfeeddeafbeef000004390116'];
+      'baadf00dfeeddeafbeef000004390116',
+    ];
     var expected = buildExpectedManifest(
         [
           buildDrmInfo('com.microsoft.playready', keyIds),

@@ -15,18 +15,24 @@
  * limitations under the License.
  */
 
-goog.require('shaka.test.Util');
-
 describe('Mp4TtmlParser', function() {
+  /** @const */
   var ttmlInitSegmentUri = '/base/test/test/assets/ttml-init.mp4';
+  /** @const */
   var ttmlSegmentUri = '/base/test/test/assets/ttml-segment.mp4';
+  /** @const */
   var ttmlSegmentMultipleMDATUri =
       '/base/test/test/assets/ttml-segment-multiplemdat.mp4';
+  /** @const */
   var audioInitSegmentUri = '/base/test/test/assets/sintel-audio-init.mp4';
 
+  /** @type {!Uint8Array} */
   var ttmlInitSegment;
+  /** @type {!Uint8Array} */
   var ttmlSegment;
+  /** @type {!Uint8Array} */
   var ttmlSegmentMultipleMDAT;
+  /** @type {!Uint8Array} */
   var audioInitSegment;
 
   beforeAll(function(done) {
@@ -36,10 +42,10 @@ describe('Mp4TtmlParser', function() {
       shaka.test.Util.fetch(ttmlSegmentMultipleMDATUri),
       shaka.test.Util.fetch(audioInitSegmentUri)
     ]).then(function(responses) {
-      ttmlInitSegment = responses[0];
-      ttmlSegment = responses[1];
-      ttmlSegmentMultipleMDAT = responses[2];
-      audioInitSegment = responses[3];
+      ttmlInitSegment = new Uint8Array(responses[0]);
+      ttmlSegment = new Uint8Array(responses[1]);
+      ttmlSegmentMultipleMDAT = new Uint8Array(responses[2]);
+      audioInitSegment = new Uint8Array(responses[3]);
     }).catch(fail).then(done);
   });
 

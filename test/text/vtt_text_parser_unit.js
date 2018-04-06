@@ -504,7 +504,7 @@ describe('VttTextParser', function() {
     expect(logWarningSpy.calls.count()).toBe(7);
   });
 
-  it('respects X-TIMESTAMP-MAP header', function() {
+  it('respects X-TIMESTAMP-MAP header in probes', function() {
     verifyHelper(
         [
           {start: 30, end: 50, payload: 'Test'},
@@ -518,6 +518,41 @@ describe('VttTextParser', function() {
         'Test\n\n' +
         '00:00:40.000 --> 00:00:50.000 line:-1\n' +
         'Test2',
+        // segmentStart of null marks this as a probe.
+        { periodStart: 0, segmentStart: null, segmentEnd: 0 });
+  });
+
+  it('ignores X-TIMESTAMP-MAP header when segment times are known', function() {
+    verifyHelper(
+        [
+          {start: 120, end: 140, payload: 'Test'},
+          {start: 140, end: 150, payload: 'Test2'}
+        ] ,
+        // 900000 = 10 sec, so expect every timestamp to be 10
+        // seconds ahead of what is specified.
+        'WEBVTT\n' +
+        'X-TIMESTAMP-MAP=MPEGTS:900000,LOCAL:00:00:00.000\n\n' +
+        '00:00:20.000 --> 00:00:40.000 line:0\n' +
+        'Test\n\n' +
+        '00:00:40.000 --> 00:00:50.000 line:-1\n' +
+        'Test2',
+        // Non-null segmentStart takes precedence over X-TIMESTAMP-MAP.
+        // This protects us from rollover in the MPEGTS field.
+        { periodStart: 0, segmentStart: 100, segmentEnd: 0 });
+  });
+
+  it('skips style blocks', function() {
+    verifyHelper(
+        [
+          {start: 20, end: 40, payload: 'Test'},
+          {start: 40, end: 50, payload: 'Test2'}
+        ],
+        'WEBVTT\n\n' +
+        'STYLE\n::cue(.cyan) { color: cyan; }\n\n' +
+        '00:00:20.000 --> 00:00:40.000\n' +
+        'Test\n\n' +
+        '00:00:40.000 --> 00:00:50.000\n' +
+        'Test2',
         { periodStart: 0, segmentStart: 0, segmentEnd: 0 });
   });
 
@@ -528,7 +563,7 @@ describe('VttTextParser', function() {
    * @param {shakaExtern.TextParser.TimeContext} time
    */
   function verifyHelper(cues, text, time) {
-    var data = shaka.util.StringUtils.toUTF8(text);
+    var data = new Uint8Array(shaka.util.StringUtils.toUTF8(text));
 
     var result = new shaka.text.VttTextParser().parseMedia(data, time);
     expect(result).toBeTruthy();
@@ -562,7 +597,7 @@ describe('VttTextParser', function() {
     var error = new shaka.util.Error(
         shaka.util.Error.Severity.CRITICAL, shaka.util.Error.Category.TEXT,
         code);
-    var data = shaka.util.StringUtils.toUTF8(text);
+    var data = new Uint8Array(shaka.util.StringUtils.toUTF8(text));
     try {
       new shaka.text.VttTextParser().parseMedia(data, time);
       fail('Invalid WebVTT file supported');

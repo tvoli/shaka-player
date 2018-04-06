@@ -187,37 +187,50 @@ shaka.test.FakeDrmEngine.prototype.setSessionIds;
  */
 shaka.test.FakeStreamingEngine = function(onChooseStreams, onCanSwitch) {
   var resolve = Promise.resolve.bind(Promise);
-  var activeStreams = {};
+
+  var activeAudio = null;
+  var activeVideo = null;
+  var activeText = null;
 
   var ret = jasmine.createSpyObj('fakeStreamingEngine', [
     'destroy', 'configure', 'init', 'getCurrentPeriod', 'getActivePeriod',
-    'getActiveStreams', 'notifyNewTextStream', 'switchVariant',
-    'switchTextStream', 'seeked'
+    'getActiveAudio', 'getActiveVideo', 'getActiveText', 'loadNewTextStream',
+    'switchVariant', 'switchTextStream', 'seeked',
+    'unloadTextStream'
   ]);
   ret.destroy.and.callFake(resolve);
   ret.getCurrentPeriod.and.returnValue(null);
   ret.getActivePeriod.and.returnValue(null);
-  ret.getActiveStreams.and.returnValue(activeStreams);
-  ret.notifyNewTextStream.and.callFake(resolve);
+  ret.getActiveAudio.and.callFake(function() { return activeAudio; });
+  ret.getActiveVideo.and.callFake(function() { return activeVideo; });
+  ret.getActiveText.and.callFake(function() { return activeText; });
+  ret.loadNewTextStream.and.callFake(function(stream) {
+    activeText = stream;
+    return Promise.resolve();
+  });
+  ret.unloadTextStream.and.callFake(function() {
+    activeText = null;
+  });
   ret.init.and.callFake(function() {
     var chosen = onChooseStreams();
     return Promise.resolve().then(function() {
-      if (chosen.variant && chosen.variant.video)
-        activeStreams['video'] = chosen.variant.video;
-      if (chosen.variant && chosen.variant.audio)
-        activeStreams['audio'] = chosen.variant.audio;
-      if (chosen.text)
-        activeStreams['text'] = chosen.text;
+      if (chosen.variant && chosen.variant.audio) {
+        activeAudio = chosen.variant.audio;
+      }
+      if (chosen.variant && chosen.variant.video) {
+        activeVideo = chosen.variant.video;
+      }
+      if (chosen.text) {
+        activeText = chosen.text;
+      }
     });
   });
   ret.switchVariant.and.callFake(function(variant) {
-    if (variant.video)
-      activeStreams['video'] = variant.video;
-    if (variant.audio)
-      activeStreams['audio'] = variant.audio;
+    activeAudio = variant.audio || activeAudio;
+    activeVideo = variant.video || activeVideo;
   });
   ret.switchTextStream.and.callFake(function(textStream) {
-    activeStreams['text'] = textStream;
+    activeText = textStream;
   });
   ret.onChooseStreams = onChooseStreams;
   ret.onCanSwitch = onCanSwitch;
@@ -391,10 +404,12 @@ function createFakeBuffered(ranges) {
  * @return {!Object}
  */
 shaka.test.FakePresentationTimeline = function() {
-  var getStart = jasmine.createSpy('getSegmentAvailabilityStart');
-  var getSafeStart = jasmine.createSpy('getSafeAvailabilityStart');
+  let getStart = jasmine.createSpy('getSeekRangeStart');
+  let getEnd = jasmine.createSpy('getSeekRangeEnd');
+  let getSafeStart = jasmine.createSpy('getSafeSeekRangeStart');
   getSafeStart.and.callFake(function(delay) {
-    return shaka.test.Util.invokeSpy(getStart) + delay;
+    let end = shaka.test.Util.invokeSpy(getEnd);
+    return Math.min(shaka.test.Util.invokeSpy(getStart) + delay, end);
   });
 
   return {
@@ -403,16 +418,16 @@ shaka.test.FakePresentationTimeline = function() {
     getPresentationStartTime: jasmine.createSpy('getPresentationStartTime'),
     setClockOffset: jasmine.createSpy('setClockOffset'),
     setStatic: jasmine.createSpy('setStatic'),
-    getSegmentAvailabilityDuration:
-        jasmine.createSpy('getSegmentAvailabilityDuration'),
     notifySegments: jasmine.createSpy('notifySegments'),
     notifyMaxSegmentDuration: jasmine.createSpy('notifyMaxSegmentDuration'),
     isLive: jasmine.createSpy('isLive'),
     isInProgress: jasmine.createSpy('isInProgress'),
-    getSegmentAvailabilityStart: getStart,
-    getSafeAvailabilityStart: getSafeStart,
+    getSegmentAvailabilityStart:
+        jasmine.createSpy('getSegmentAvailabilityStart'),
     getSegmentAvailabilityEnd: jasmine.createSpy('getSegmentAvailabilityEnd'),
-    getSeekRangeEnd: jasmine.createSpy('getSeekRangeEnd')
+    getSeekRangeStart: getStart,
+    getSafeSeekRangeStart: getSafeStart,
+    getSeekRangeEnd: getEnd,
   };
 };
 
@@ -438,10 +453,6 @@ shaka.test.FakePresentationTimeline.prototype.setStatic;
 
 
 /** @type {jasmine.Spy} */
-shaka.test.FakePresentationTimeline.prototype.getSegmentAvailabilityDuration;
-
-
-/** @type {jasmine.Spy} */
 shaka.test.FakePresentationTimeline.prototype.notifySegments;
 
 
@@ -462,11 +473,15 @@ shaka.test.FakePresentationTimeline.prototype.getSegmentAvailabilityStart;
 
 
 /** @type {jasmine.Spy} */
-shaka.test.FakePresentationTimeline.prototype.getSafeAvailabilityStart;
+shaka.test.FakePresentationTimeline.prototype.getSegmentAvailabilityEnd;
 
 
 /** @type {jasmine.Spy} */
-shaka.test.FakePresentationTimeline.prototype.getSegmentAvailabilityEnd;
+shaka.test.FakePresentationTimeline.prototype.getSafeSeekRangeStart;
+
+
+/** @type {jasmine.Spy} */
+shaka.test.FakePresentationTimeline.prototype.getSeekRangeStart;
 
 
 /** @type {jasmine.Spy} */

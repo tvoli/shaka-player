@@ -15,232 +15,254 @@
  * limitations under the License.
  */
 
-describe('DBEngine', /** @suppress {accessControls} */ function() {
-  /** @const */
-  var oldName = shaka.offline.DBEngine.DB_NAME_;
+describe('DBEngine', function() {
+  const UNSUPPORTED_UPGRADE_REQUEST =
+      shaka.util.Error.Code.UNSUPPORTED_UPGRADE_REQUEST;
 
-  /** @type {!shaka.offline.DBEngine} */
-  var db;
-  /** @type {!Object.<string, string>} */
-  var schema;
+  const OfflineUtils = shaka.test.OfflineUtils;
 
-  beforeAll(function() {
-    if (shaka.offline.DBEngine.isSupported()) {
-      shaka.offline.DBEngine.DB_NAME_ += '_test';
-    }
-  });
+  /** @const {string} */
+  const dbName = 'shaka-player-test-db';
 
-  beforeEach(function(done) {
-    if (shaka.offline.DBEngine.isSupported()) {
-      schema = {'test': 'key', 'other': 'key'};
-      shaka.offline.DBEngine.deleteDatabase().then(function() {
-        db = new shaka.offline.DBEngine();
-        return db.init(schema, /* opt_retryCount */ 5);
-      }).catch(fail).then(done);
-    } else {
-      done();
-    }
-  });
+  function deleteOld() {
+    return shaka.offline.DBEngine.deleteDatabase(dbName);
+  }
 
-  afterAll(function() {
-    if (shaka.offline.DBEngine.isSupported()) {
-      shaka.offline.DBEngine.DB_NAME_ = oldName;
-    }
-  });
-
-  afterEach(function(done) {
-    if (shaka.offline.DBEngine.isSupported()) {
-      db.destroy().catch(fail).then(done);
-    } else {
-      done();
-    }
-  });
-
-  it('stores and retrieves values', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
-    var data = {
-      key: 123,
-      extra: 'foobar'
-    };
-    db.insert('test', data).then(function() {
-      return db.get('test', 123);
-    }).then(function(actual) {
-      expect(actual).toEqual(data);
-    }).catch(fail).then(done);
-  });
-
-  it('supports concurrent operations', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
-    var data1 = {key: 1, extra: 'cat'};
-    var data2 = {key: 2, foobar: 'baz'};
-    var data3 = {key: 3, abc: 123};
-    var data4 = {key: 4, utf: [1, 2, 3]};
-    Promise.all([
-      db.insert('test', data1),
-      db.insert('test', data2),
-      db.insert('other', data3),
-      db.insert('test', data4)
-    ]).then(function() {
-      return Promise.all([
-        db.get('test', 1),
-        db.get('test', 2),
-        db.get('other', 3),
-        db.get('test', 4)
-      ]);
-    }).then(function(data) {
-      expect(data[0]).toEqual(data1);
-      expect(data[1]).toEqual(data2);
-      expect(data[2]).toEqual(data3);
-      expect(data[3]).toEqual(data4);
-    }).catch(fail).then(done);
-  });
-
-  it('supports remove', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
-    Promise.all([
-      db.insert('test', {key: 1, i: 4}),
-      db.insert('test', {key: 2, i: 1}),
-      db.insert('test', {key: 3, i: 2}),
-      db.insert('test', {key: 4, i: 9}),
-      db.insert('test', {key: 5, i: 8}),
-      db.insert('test', {key: 6, i: 7})
-    ]).then(function() {
-      return db.remove('test', 2);
-    }).then(function() {
-      return db.get('test', 2);
-    }).then(function(data) {
-      expect(data).toBeFalsy();
-      return db.removeKeys('test', [4, 5, 6]);
-    }).then(function() {
-      return db.get('test', 5);
-    }).then(function(data) {
-      expect(data).toBeFalsy();
-      return db.get('test', 3);
-    }).then(function(data) {
-      expect(data).toBeTruthy();
-    }).catch(fail).then(done);
-  });
-
-  it('supports iterating over each element', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
-    var testData = [
-      {key: 1, i: 4},
-      {key: 2, i: 1},
-      {key: 3, i: 2},
-      {key: 4, i: 9}
-    ];
-    var spy = jasmine.createSpy('forEach');
-    Promise.all(testData.map(db.insert.bind(db, 'test')))
-        .then(function() {
-          return db.forEach('test', shaka.test.Util.spyFunc(spy));
-        })
-        .then(function() {
-          expect(spy).toHaveBeenCalledTimes(testData.length);
-          for (var i = 0; i < testData.length; i++)
-            expect(spy).toHaveBeenCalledWith(testData[i]);
-        })
-        .catch(fail)
-        .then(done);
-  });
-
-  it('aborts transactions on destroy()', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
-    var expectedError = new shaka.util.Error(
-        shaka.util.Error.Severity.CRITICAL,
-        shaka.util.Error.Category.STORAGE,
-        shaka.util.Error.Code.OPERATION_ABORTED);
-    var insert1Finished = false, insert2Finished = false;
-    db.insert('test', {key: 1}).then(fail, function(error) {
-      shaka.test.Util.expectToEqualError(error, expectedError);
-      insert1Finished = true;
-    });
-    db.insert('test', {key: 2}).then(fail, function(error) {
-      shaka.test.Util.expectToEqualError(error, expectedError);
-      insert2Finished = true;
-    });
-
-    db.destroy()
-        .catch(fail)
-        .then(function() {
-          // Insert a slight delay to avoid a race between this callback and
-          // the above callbacks.
-          return shaka.test.Util.delay(0.001);
-        })
-        .then(function() {
-          expect(insert1Finished).toBe(true);
-          expect(insert2Finished).toBe(true);
-          done();
+  function openDB() {
+    const dbUpdateRetries = 5;
+    let db = new shaka.offline.DBEngine(dbName);
+    return db.init(dbUpdateRetries)
+        .then(() => db)
+        .catch((e) => {
+          // Make sure that if there is an error, that the db engine is
+          // destroyed or else we may not be able to delete it later.
+          return db.destroy().then(() => { throw e; });
         });
+  }
+
+  describe('upgrade failures', function() {
+    it('fails to open with old version', checkAndRun((done) => {
+      const storeNames = ['manifest', 'manifest-v2'];
+      const manifest1 = { originalManifestUri: 'original-uri-1' };
+      const manifest2 = { originalManifestUri: 'original-uri-2' };
+
+      // Create a mock old database with the manifest tables.
+      deleteOld()
+          .then(() => {
+            return shaka.test.SimpleIDB.open(dbName, 1, storeNames);
+          })
+          .then((sdb) => {
+            return Promise.resolve()
+                .then(() => sdb.add('manifest', manifest1))
+                .then(() => sdb.add('manifest-v2', manifest2))
+                .then(() => sdb.close());
+          })
+          .then(openDB)
+          // We expect a failure because the other database should keep the db
+          // engine from starting easily.
+          .then(fail)
+          .catch((e) => {
+            expect(e.code).toBe(UNSUPPORTED_UPGRADE_REQUEST);
+
+            // The data in the error should be all the content uris.
+            expect(e.data.length).toBe(1);
+            expect(e.data[0].length).toBe(2);
+            expect(e.data[0]).toContain('original-uri-1');
+            expect(e.data[0]).toContain('original-uri-2');
+
+            done();
+          });
+    }));
+
+    it('opens if we delete the old database', checkAndRun((done) => {
+      // Create a mock old database with the manifest table.
+      deleteOld()
+          .then(() => {
+            return shaka.test.SimpleIDB.open(dbName, 1, ['manifest']);
+          })
+          .then((sdb) => sdb.close())
+          .then(openDB)
+          // We expect a failure because the other database should keep the db
+          // engine from starting easily.
+          .then(fail)
+          .catch((e) => {
+            expect(e.code).toBe(UNSUPPORTED_UPGRADE_REQUEST);
+          })
+          .then(deleteOld)
+          .then(openDB)
+          // We should have been able to open the database as we deleted the
+          // old version.
+          .then((db) => db.destroy())
+          .catch(fail)
+          .then(done);
+    }));
+
+    it('can add to database after delete', checkAndRun((done) => {
+      const manifest = OfflineUtils.createManifest('original manifest');
+
+      // Create a mock old database with the manifest table.
+      deleteOld()
+          .then(() => {
+            return shaka.test.SimpleIDB.open(dbName, 1, ['manifest']);
+          })
+          .then((sdb) => sdb.close())
+          .then(openDB)
+          // We expect a failure because the other database should keep the db
+          // engine from starting easily.
+          .then(fail)
+          .catch((e) => {
+            expect(e.code).toBe(UNSUPPORTED_UPGRADE_REQUEST);
+          })
+          .then(deleteOld)
+          .then(openDB)
+          // We should have been able to open the database as we deleted the
+          // old version.
+          .then((db) => {
+            return db.addManifest(manifest).then(() => db.destroy());
+          })
+          .catch(fail)
+          .then(done);
+    }));
   });
 
-  it('will find and reserve IDs', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
-    Promise
-        .all([
-          db.insert('test', {key: 1}),
-          db.insert('test', {key: 2}),
-          db.insert('other', {key: 4}),  // Max
-          db.insert('test', {key: 6}),
-          db.insert('test', {key: 9}),  // Max
-          db.insert('other', {key: 3}),
-          db.insert('other', {key: 1})
-        ])
-        // Destroy the database to refresh the IDs.
-        .then(function() { return db.destroy(); })
-        .then(function() {
-          db = new shaka.offline.DBEngine();
-          return db.init(schema);
-        })
-        .then(function() {
-          expect(db.reserveId('test')).toBe(10);
-          expect(db.reserveId('test')).toBe(11);
-          expect(db.reserveId('other')).toBe(5);
-          expect(db.reserveId('test')).toBe(12);
-          expect(db.reserveId('test')).toBe(13);
-          expect(db.reserveId('other')).toBe(6);
-        })
-        .catch(fail)
-        .then(done);
-  });
+  it('stores and retrieves a manifest', checkAndRun(function(done) {
+    /** @type {shakaExtern.ManifestDB} */
+    var original = OfflineUtils.createManifest('original manifest');
 
-  it('will catch aborting transactions', function(done) {
-    if (!shaka.offline.DBEngine.isSupported()) {
-      pending('DBEngine is not supported on this platform.');
-    }
+    deleteOld().then(openDB).then((db) => {
+      return db.addManifest(original)
+          .then((id) => db.getManifest(id))
+          .then((copy) => {
+            expect(copy).toEqual(original);
+            return db.destroy();
+          });
+    }).catch(fail).then(done);
+  }));
 
-    // Change the insert function so that once the put request completes
-    // the transaction will abort. This should cause the promise to be
-    // rejected.
-    db.insert = function(storeName, value) {
-      return this.createTransaction_(storeName, 'readwrite', function(store) {
-        var request = store.put(value);
-        request.onsuccess = function(event) {
-          request.transaction.abort();
-        };
-      });
+  it('stores and retrieves many manifest', checkAndRun(function(done) {
+    /** @type {!Array<shakaExtern.ManifestDB>} */
+    var originals = [
+      OfflineUtils.createManifest('original manifest 1'),
+      OfflineUtils.createManifest('original manifest 2'),
+      OfflineUtils.createManifest('original manifest 3'),
+      OfflineUtils.createManifest('original manifest 4')
+    ];
+
+    /** @type {!Array<shakaExtern.ManifestDB>} */
+    var copies = [];
+
+    deleteOld().then(openDB).then((db) => {
+      return Promise.all(originals.map((original) => db.addManifest(original)))
+          .then(() => {
+            return db.forEachManifest((id, manifest) => copies.push(manifest));
+          })
+          .then(() => {
+            originals.forEach((original) => expect(copies).toContain(original));
+            return db.destroy();
+          });
+    }).catch(fail).then(done);
+  }));
+
+  it('stores and removes a manifest', checkAndRun(function(done) {
+    /** @type {shakaExtern.ManifestDB} */
+    var original = OfflineUtils.createManifest('original manifest');
+
+    /** @type {number} */
+    var id;
+
+    deleteOld().then(openDB).then((db) => {
+      return db.addManifest(original)
+          .then((newId) => {
+            id = newId;
+            return db.getManifest(id);
+          })
+          .then((value) => {
+            expect(value).toEqual(original);
+            return db.removeManifests([id], null);
+          })
+          .then(() => {
+            return db.getManifest(id);
+          })
+          .then((copy) => {
+            expect(copy).toBeFalsy();
+            return db.destroy();
+          });
+    }).catch(fail).then(done);
+  }));
+
+  it('stores and retrieves a segment', checkAndRun(function(done) {
+    /** @type {shakaExtern.SegmentDataDB} */
+    var original = OfflineUtils.createSegmentData([0, 1, 2]);
+
+    deleteOld().then(openDB).then((db) => {
+      return db.addSegment(original)
+          .then((id) => db.getSegment(id))
+          .then((copy) => OfflineUtils.expectSegmentToEqual(copy, original))
+          .then(() => db.destroy());
+    }).catch(fail).then(done);
+  }));
+
+  it('stores and retrieves many segments', checkAndRun(function(done) {
+    /** @type {!Array<shakaExtern.SegmentDataDB>} */
+    var originals = [
+      OfflineUtils.createSegmentData([0]),
+      OfflineUtils.createSegmentData([1, 2]),
+      OfflineUtils.createSegmentData([3, 4, 5]),
+      OfflineUtils.createSegmentData([6, 7, 8, 9])
+    ];
+
+    /** @type {!Array<shakaExtern.SegmentDataDB>} */
+    var copies = [];
+
+    deleteOld().then(openDB).then((db) => {
+      return Promise.all(originals.map((original) => db.addSegment(original)))
+          .then(() => db.forEachSegment((id, segment) => copies.push(segment)))
+          .then(() => originals.forEach((original) => {
+            OfflineUtils.expectSegmentsToContain(copies, original);
+            return db.destroy();
+          }));
+    }).catch(fail).then(done);
+  }));
+
+  it('stores and removes a segment', checkAndRun(function(done) {
+    /** @type {shakaExtern.SegmentDataDB} */
+    var original = OfflineUtils.createSegmentData([0, 1, 2]);
+
+    /** @type {number} */
+    var id;
+
+    deleteOld().then(openDB).then((db) => {
+      return db.addSegment(original)
+          .then((newId) => {
+            id = newId;
+            return db.getSegment(id);
+          })
+          .then((value) => {
+            OfflineUtils.expectSegmentToEqual(value, original);
+            return db.removeSegments([id], null);
+          })
+          .then(() => {
+            return db.getSegment(id);
+          })
+          .then((copy) => {
+            expect(copy).toBeFalsy();
+            return db.destroy();
+          });
+    }).catch(fail).then(done);
+  }));
+
+  /**
+   * Before running the test, check if DBEngine is supported on this platform.
+   * @param {function(function())} test
+   * @return {function(function())}
+   */
+  function checkAndRun(test) {
+    return function(done) {
+      if (shaka.offline.DBEngine.isSupported()) {
+        test(done);
+      } else {
+        pending('DBEngine is not supported on this platform.');
+      }
     };
-
-    var expected = new shaka.util.Error(
-        shaka.util.Error.Severity.CRITICAL,
-        shaka.util.Error.Category.STORAGE,
-        shaka.util.Error.Code.OPERATION_ABORTED);
-
-    db.insert('test', {key: 1}).then(fail, function(error) {
-      shaka.log.info('insert failed as expected ', error);
-      shaka.test.Util.expectToEqualError(error, expected);
-      done();
-    });
-  });
+  }
 });

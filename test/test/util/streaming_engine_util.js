@@ -17,8 +17,7 @@
 
 goog.provide('shaka.test.StreamingEngineUtil');
 
-goog.require('shaka.media.SegmentReference');
-goog.require('shaka.test.FakeNetworkingEngine');
+/** @fileoverview @suppress {missingRequire} */
 
 
 /**
@@ -41,8 +40,13 @@ goog.require('shaka.test.FakeNetworkingEngine');
  */
 shaka.test.StreamingEngineUtil.createFakeNetworkingEngine = function(
     getInitSegment, getSegment) {
-  var netEngine = {
-    request: jasmine.createSpy('request')
+  let netEngine = {
+    request: jasmine.createSpy('request'),
+    delays: {  // Artificial delays per content type, in seconds.
+      audio: 0,
+      video: 0,
+      text: 0,
+    },
   };
 
   netEngine.request.and.callFake(function(requestType, request) {
@@ -70,12 +74,22 @@ shaka.test.StreamingEngineUtil.createFakeNetworkingEngine = function(
       buffer = getSegment(contentType, periodNumber, position);
     }
 
-    var response = {uri: request.uris[0], data: buffer, headers: {}};
-    return Promise.resolve(response);
+    const response = {uri: request.uris[0], data: buffer, headers: {}};
+    const p = new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(response);
+      }, netEngine.delays[contentType] * 1000);
+    });
+    return p;
   });
 
   netEngine.expectRequest = function(uri, type) {
     shaka.test.FakeNetworkingEngine.expectRequest(
+        netEngine.request, uri, type);
+  };
+
+  netEngine.expectNoRequest = function(uri, type) {
+    shaka.test.FakeNetworkingEngine.expectNoRequest(
         netEngine.request, uri, type);
   };
 
@@ -101,32 +115,34 @@ shaka.test.StreamingEngineUtil.createFakeNetworkingEngine = function(
  * @param {number} segmentAvailabilityEnd The initial value of
  *   |segmentAvailabilityEnd|.
  * @param {number} presentationDuration
+ * @param {number} maxSegmentDuration
  * @param {boolean} isLive
  * @return {!Object} A PresentationTimeline look-alike.
  *
  */
 shaka.test.StreamingEngineUtil.createFakePresentationTimeline = function(
     segmentAvailabilityStart, segmentAvailabilityEnd, presentationDuration,
-    isLive) {
+    maxSegmentDuration, isLive) {
   var timeline = {
     getDuration: jasmine.createSpy('getDuration'),
     setDuration: jasmine.createSpy('setDuration'),
-    getSegmentAvailabilityDuration:
-        jasmine.createSpy('getSegmentAvailabilityDuration'),
+    getMaxSegmentDuration: jasmine.createSpy('getMaxSegmentDuration'),
     isLive: jasmine.createSpy('isLive'),
     getEarliestStart: jasmine.createSpy('getEarliestStart'),
     getSegmentAvailabilityStart:
         jasmine.createSpy('getSegmentAvailabilityStart'),
-    getSafeAvailabilityStart:
-        jasmine.createSpy('getSafeAvailabilityStart'),
     getSegmentAvailabilityEnd:
         jasmine.createSpy('getSegmentAvailabilityEnd'),
+    getSafeSeekRangeStart: jasmine.createSpy('getSafeSeekRangeStart'),
+    getSeekRangeStart: jasmine.createSpy('getSeekRangeStart'),
     getSeekRangeEnd: jasmine.createSpy('getSeekRangeEnd'),
     segmentAvailabilityStart: segmentAvailabilityStart,
     segmentAvailabilityEnd: segmentAvailabilityEnd
   };
 
   timeline.getDuration.and.returnValue(presentationDuration);
+
+  timeline.getMaxSegmentDuration.and.returnValue(maxSegmentDuration);
 
   timeline.isLive.and.callFake(function() {
     return isLive;
@@ -140,22 +156,21 @@ shaka.test.StreamingEngineUtil.createFakePresentationTimeline = function(
     return timeline.segmentAvailabilityStart;
   });
 
-  timeline.getSafeAvailabilityStart.and.callFake(function(delay) {
-    return timeline.segmentAvailabilityStart + delay;
-  });
-
   timeline.getSegmentAvailabilityEnd.and.callFake(function() {
     return timeline.segmentAvailabilityEnd;
   });
 
-  timeline.getSeekRangeEnd.and.callFake(function() {
-    return shaka.test.Util.invokeSpy(timeline.getSegmentAvailabilityEnd);
+  timeline.getSafeSeekRangeStart.and.callFake(function(delay) {
+    return shaka.test.Util.invokeSpy(timeline.getSegmentAvailabilityStart) +
+        delay;
   });
 
-  timeline.getSegmentAvailabilityDuration.and.callFake(function() {
-    return presentationDuration == Infinity ?
-           timeline.segmentAvailabilityEnd - timeline.segmentAvailabilityStart :
-           Infinity;
+  timeline.getSeekRangeStart.and.callFake(function() {
+    return shaka.test.Util.invokeSpy(timeline.getSegmentAvailabilityStart);
+  });
+
+  timeline.getSeekRangeEnd.and.callFake(function() {
+    return shaka.test.Util.invokeSpy(timeline.getSegmentAvailabilityEnd);
   });
 
   // These methods should not be invoked.

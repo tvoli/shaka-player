@@ -204,7 +204,7 @@ shakaExtern.BufferedInfo;
  * @property {number} id
  *   The unique ID of the track.
  * @property {boolean} active
- *   If true, this is the track is being streamed (another track may be
+ *   If true, this is the track being streamed (another track may be
  *   visible/audible in the buffer).
  *
  * @property {string} type
@@ -309,6 +309,7 @@ shakaExtern.Restrictions;
  *
  * @property {boolean} persistentState
  *   Whether this key system supports persistent state.
+ * @exportDoc
  */
 shakaExtern.DrmSupportType;
 
@@ -366,6 +367,7 @@ shakaExtern.SupportType;
  *   Specifies an identifier for this instance of the region.
  * @property {Element} eventElement
  *   The XML element that defines the Event.
+ * @exportDoc
  */
 shakaExtern.TimelineRegionInfo;
 
@@ -494,7 +496,8 @@ shakaExtern.DrmConfiguration;
  *   customScheme: shakaExtern.DashContentProtectionCallback,
  *   clockSyncUri: string,
  *   ignoreDrmInfo: boolean,
- *   xlinkFailGracefully: boolean
+ *   xlinkFailGracefully: boolean,
+ *   defaultPresentationDelay: number
  * }}
  *
  * @property {shakaExtern.DashContentProtectionCallback} customScheme
@@ -514,6 +517,9 @@ shakaExtern.DrmConfiguration;
  *   existing contents. If false, xlink-related errors will be propagated
  *   to the application and will result in a playback failure. Defaults to
  *   false if not provided.
+ * @property {number} defaultPresentationDelay
+ *   A default presentationDelay if suggestedPresentationDelay is missing
+ *   in the MPEG DASH manifest, has to be bigger than minBufferTime * 1.5.
  *
  * @exportDoc
  */
@@ -522,32 +528,14 @@ shakaExtern.DashManifestConfiguration;
 
 /**
  * @typedef {{
- *   defaultTimeOffset: number
- * }}
- *
- * @property {number} defaultTimeOffset
- *   Default time offset (in seconds) for hls content used when no offset
- *   is specified by the manifest. Defaults to 0 if not provided.
- *   NOTE: Default time offset for Apple encoded content is 10 seconds.
- *
- * @exportDoc
- */
-shakaExtern.HlsManifestConfiguration;
-
-
-/**
- * @typedef {{
  *   retryParameters: shakaExtern.RetryParameters,
- *   dash: shakaExtern.DashManifestConfiguration,
- *   hls: shakaExtern.HlsManifestConfiguration
+ *   dash: shakaExtern.DashManifestConfiguration
  * }}
  *
  * @property {shakaExtern.RetryParameters} retryParameters
  *   Retry parameters for manifest requests.
  * @property {shakaExtern.DashManifestConfiguration} dash
  *   Advanced parameters used by the DASH manifest parser.
- * @property {shakaExtern.HlsManifestConfiguration} hls
- *   Advanced parameters used by the HLS manifest parser.
  *
  * @exportDoc
  */
@@ -562,9 +550,11 @@ shakaExtern.ManifestConfiguration;
  *   bufferingGoal: number,
  *   bufferBehind: number,
  *   ignoreTextStreamFailures: boolean,
+ *   alwaysStreamText: boolean,
  *   startAtSegmentBoundary: boolean,
  *   smallGapLimit: number,
- *   jumpLargeGaps: boolean
+ *   jumpLargeGaps: boolean,
+ *   durationBackoff: number
  * }}
  *
  * @description
@@ -589,8 +579,13 @@ shakaExtern.ManifestConfiguration;
  *   in buffer behind the playhead when it appends a new media segment.
  *   The StreamingEngine will evict content to meet this limit.
  * @property {boolean} ignoreTextStreamFailures
- *   If true, the player will ignore text stream failures and proceed to play
+ *   If true, the player will ignore text stream failures and continue playing
  *   other streams.
+ * @property {boolean} alwaysStreamText
+ *   If true, always stream text tracks, regardless of whether or not they are
+ *   shown.  This is necessary when using the browser's built-in controls, which
+ *   are not capable of signaling display state changes back to Shaka Player.
+ *   Defaults to false.
  * @property {boolean} startAtSegmentBoundary
  *   If true, adjust the start time backwards so it is at the start of a
  *   segment. This affects both explicit start times and calculated start time
@@ -605,6 +600,12 @@ shakaExtern.ManifestConfiguration;
  *   raised first.  Then, if the app doesn't call preventDefault() on the event,
  *   the Player will jump the gap.  If false, then the event will be raised,
  *   but the gap will not be jumped.
+ * @property {number} durationBackoff
+ *   By default, we will not allow seeking to exactly the duration of a
+ *   presentation.  This field is the number of seconds before duration we will
+ *   seek to when the user tries to seek to or start playback at the duration.
+ *   To disable this behavior, the config can be set to 0.  We recommend using
+ *   the default value unless you have a good reason not to.
  * @exportDoc
  */
 shakaExtern.StreamingConfiguration;
@@ -691,3 +692,18 @@ shakaExtern.AbrConfiguration;
  * @exportDoc
  */
 shakaExtern.PlayerConfiguration;
+
+
+/**
+ * @typedef {{
+ *   language: string,
+ *   role: string
+ * }}
+ *
+ * @property {string} language
+ *    The language code for the stream.
+ * @property {string} role
+ *    The role name for the stream. If the stream has no role, |role| will be
+ *    ''.
+ */
+shakaExtern.LanguageRole;

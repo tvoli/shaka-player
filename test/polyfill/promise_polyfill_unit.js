@@ -209,17 +209,19 @@ describe('Promise polyfill', function() {
     // with no `this` value).
     it('not called with `this`', function(done) {
       Promise.resolve(dummy)
-          .then(function() {
+          .then(/** @this {*} */ function() {
             expect(this).toBe(window);
             throw new Error();
           })
-          .then(fail, function() { expect(this).toBe(window); })
-          .then(function() {
+          .then(fail, /** @this {*} */ function() {
+            expect(this).toBe(window);
+          })
+          .then(/** @this {*} */ function() {
             'use strict';
             expect(this).toBe(undefined);
             throw new Error();
           })
-          .then(fail, function() {
+          .then(fail, /** @this {*} */ function() {
             'use strict';
             expect(this).toBe(undefined);
           })
@@ -292,6 +294,10 @@ describe('Promise polyfill', function() {
     it('chains correctly', function(done) {
       var p = Promise.resolve(dummy);
 
+      // Use a double-cast to get the compiler to allow this.
+      var invalidFunction = /** @type {function(*)} */(
+          /** @type {*} */(undefined));
+
       p.then(function() { return 1; })
           .then(function(i) { expect(i).toBe(1); })
           .catch(fail)
@@ -306,7 +312,7 @@ describe('Promise polyfill', function() {
           .then(fail)
           .catch(function() { throw new Error(); })
           .then(fail)
-          .catch()
+          .catch(invalidFunction)
           .then(fail)
           .catch(function() {})
           .then(done);

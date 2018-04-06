@@ -22,27 +22,61 @@ requirement: {
   type: CUSTOM
   java_class:
       'com.google.javascript.jscomp.ConformanceRules$BanThrowOfNonErrorTypes'
-  error_message: 'Throwing non-Error types or Error itself is not allowed: '
+  error_message: 'Throwing non-Error types or Error itself is not allowed; '
                  'throw shaka.util.Error instead.'
-  whitelist_regexp: 'test/*'
+  whitelist_regexp: 'test/'
 }
+requirement: {
+  type: BANNED_CODE_PATTERN
+  value: 'function template() { throw new Error(); }'
+  error_message: 'Throwing non-Error types or Error itself is not allowed; '
+                 'throw shaka.util.Error instead.'
+  whitelist_regexp: 'test/'
+}
+
 
 # Ban accessing members of unknown types.
 requirement: {
   type: CUSTOM
   java_class: 'com.google.javascript.jscomp.ConformanceRules$'
               'BanUnknownTypedClassPropsReferences'
-  error_message: 'Using properties of unknown types is not allowed: add an '
+  error_message: 'Using properties of unknown types is not allowed; add an '
                  'explicit type to the variable.'
-  whitelist_regexp: 'demo/*'
+  whitelist_regexp: 'demo/'
+}
+requirement {
+  type: CUSTOM
+  java_class: 'com.google.javascript.jscomp.ConformanceRules$BanUnknownThis'
+  error_message: 'Failed to infer type of "this"; '
+                 'please be explicit or use bind!'
 }
 
-requirement: {
-  type: BANNED_CODE_PATTERN
-  value: 'function template() { throw new Error(); }'
-  error_message: 'Throwing non-Error types or Error itself is not allowed: '
-                 'throw shaka.util.Error instead.'
-  whitelist_regexp: 'test/*'
+
+# Ban the use of @expose annotations.
+requirement {
+  type: CUSTOM
+  java_class: 'com.google.javascript.jscomp.ConformanceRules$BanExpose'
+  error_message: '@expose is not allowed; please use externs instead. '
+                 'See docs/design/export.md for details.'
+}
+
+
+# Reject unresolved types.
+requirement {
+  type: CUSTOM
+  java_class: 'com.google.javascript.jscomp.ConformanceRules$BanUnresolvedType'
+  error_message: 'Failed to resolve type!'
+}
+
+
+# Reject global variables.
+requirement {
+  type: CUSTOM
+  java_class: 'com.google.javascript.jscomp.ConformanceRules$BanGlobalVars'
+  error_message: 'Global variables are not allowed!'
+  whitelist_regexp: 'demo/'
+  whitelist_regexp: 'third_party/closure/'
+  whitelist_regexp: 'test/'
 }
 
 
@@ -54,16 +88,23 @@ requirement: {
   value: '/** @param {boolean} b @param {?number} n */ '
          'function template(b, n) { b = !n; }'
   error_message: 'Using "!" on nullable numbers in boolean assignment '
-                 'is not allowed: use an explicit comparison instead.'
+                 'is not allowed; use an explicit comparison instead.'
 }
 
 
-# Disallow console.log.
+# Disallow console logging.
 requirement: {
   type: BANNED_PROPERTY_CALL
+  value: 'Console.prototype.debug'
   value: 'Console.prototype.log'
-  error_message: 'Using "console.log" is not allowed: '
+  value: 'Console.prototype.info'
+  value: 'Console.prototype.warn'
+  value: 'Console.prototype.error'
+  error_message: 'Using "console" is not allowed; '
                  'use shaka.log instead'
+  whitelist_regexp: 'demo/'
+  whitelist_regexp: 'third_party/closure/'
+  whitelist_regexp: 'test/test/boot.js'
 }
 
 
@@ -71,7 +112,7 @@ requirement: {
 requirement: {
   type: BANNED_PROPERTY
   value: 'Element.prototype.children'
-  error_message: 'Using "Element.children" is not allowed: '
+  error_message: 'Using "Element.children" is not allowed; '
                  'use Node.childNodes instead'
 }
 
@@ -93,11 +134,47 @@ requirement: {
 }
 
 
-#Disallow classList toggle.
+# Disallow classList toggle.
 requirement: {
   type: BANNED_PROPERTY_CALL
   value: 'DOMTokenList.prototype.toggle'
   error_message: 'classList toggle is not supported in IE11'
+}
+
+
+# Disallow setInterval.
+requirement: {
+  type: BANNED_NAME
+  value: 'window.setInterval'
+  error_message: 'Using "setInterval" is not allowed; '
+                 'use shaka.util.Timer.prototype.scheduleRepeated instead.'
+  whitelist_regexp: 'demo/'
+  whitelist_regexp: 'test/'
+}
+requirement: {
+  type: BANNED_NAME
+  value: 'setInterval'
+  error_message: 'Using "setInterval" is not allowed; '
+                 'use shaka.util.Timer.prototype.scheduleRepeated instead.'
+  whitelist_regexp: 'demo/'
+  whitelist_regexp: 'test/'
+}
+
+
+# Disallow eval, except when testing for ES6 syntax in demo
+requirement: {
+  type: BANNED_NAME
+  value: 'window.eval'
+  error_message: 'Using "eval" is not allowed'
+  whitelist_regexp: 'demo/load.js'
+  whitelist_regexp: 'demo/main.js'
+}
+requirement: {
+  type: BANNED_NAME
+  value: 'eval'
+  error_message: 'Using "eval" is not allowed'
+  whitelist_regexp: 'demo/load.js'
+  whitelist_regexp: 'demo/main.js'
 }
 
 
@@ -135,6 +212,12 @@ requirement: {
   value: 'ArrayBuffer.prototype.slice'
   error_message: 'ArrayBuffer.slice is not allowed because it '
                  'is not supported on Tizen 2016'
+}
+requirement: {
+  type: BANNED_PROPERTY
+  value: 'TypedArray.prototype.slice'
+  error_message: 'TypedArray.slice is not allowed because it '
+                 'is not supported on IE11'
 }
 requirement: {
   type: BANNED_NAME
