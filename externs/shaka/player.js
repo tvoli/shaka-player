@@ -182,8 +182,6 @@ shakaExtern.BufferedInfo;
  *   frameRate: ?number,
  *   mimeType: ?string,
  *   codecs: ?string,
- *   sar: ?number,
- *   par: ?number,
  *   audioCodec: ?string,
  *   videoCodec: ?string,
  *   primary: boolean,
@@ -230,10 +228,6 @@ shakaExtern.BufferedInfo;
  *   The MIME type of the content provided in the manifest.
  * @property {?string} codecs
  *   The audio/video codecs string provided in the manifest, if present.
- * @property {?number} sar
- *   The video aspect ratio provided in the manifest, if present.
- * @property {?number} par
- *   The video aspect ratio provided in the manifest, if present.
  * @property {?string} audioCodec
  *   The audio codecs string provided in the manifest, if present.
  * @property {?string} videoCodec
