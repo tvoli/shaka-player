@@ -1,7 +1,7 @@
 {
   "name": "@maginetv/shaka-player",
   "description": "DASH/EME video player library",
-  "version": "2.3.5",
+  "version": "2.3.5-0",
   "homepage": "https://github.com/google/shaka-player",
   "author": "Google",
   "maintainers": [
@@ -62,6 +62,6 @@
   },
   "license": "Apache-2.0",
   "scripts": {
-    "prepublish": "in-publish && python build/checkversion.py && python build/docs.py && python build/all.py --force || not-in-publish"
+    "prepublish": "in-publish && python build/docs.py && python build/all.py --force || not-in-publish"
   }
 }
