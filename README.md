@@ -1,155 +1,274 @@
-# Shaka Player #
+# ![Shaka Player](docs/shaka-player-logo.png)
 
-The Shaka Player is a JavaScript library which implements a [DASH][] client.
-It relies on [HTML5 video][], [MediaSource Extensions][], and [Encrypted Media
-Extensions][] for playback.
+Shaka Player is an open-source JavaScript library for adaptive media.  It plays
+adaptive media formats (such as [DASH][] and [HLS][]) in a browser, without
+using plugins or Flash.  Instead, Shaka Player uses the open web standards
+[MediaSource Extensions][] and [Encrypted Media Extensions][].
 
-A generic DASH client can be difficult to implement, and the DASH standard does
-not always align well with the new browser APIs that DASH clients are built on.
-Our goal is to reduce this friction and make it easier to adopt these emerging
-web standards for streaming, without falling back to plugins.
+Shaka Player also supports [offline storage and playback][] of media using
+[IndexedDB][].  Content can be stored on any browser.  Storage of licenses
+depends on browser support.
 
-We support both ISO BMFF (MP4) and WebM files (even in the same manifest),
-WebVTT for subtitles and captions, both clear and encrypted content, and
-multiple audio and subtitle languages (even in the same manifest).
-And best of all, it's free!
+Our main goal is to make it as easy as possible to stream adaptive bitrate
+video and audio using modern browser technologies. We try to keep the library
+light, simple, and free from third-party dependencies. Everything you need to
+build and deploy is in the sources.
+
+For details on what's coming next, see our [development roadmap](roadmap.md).
 
 [DASH]: http://dashif.org/
-[HTML5 video]: http://www.html5rocks.com/en/tutorials/video/basics/
-[MediaSource Extensions]: http://w3c.github.io/media-source/
-[Encrypted Media Extensions]: https://w3c.github.io/encrypted-media/
+[HLS]: https://developer.apple.com/streaming/
+[MediaSource Extensions]: https://www.w3.org/TR/media-source/
+[Encrypted Media Extensions]: https://www.w3.org/TR/encrypted-media/
+[IndexedDB]: https://www.w3.org/TR/IndexedDB-2/
+[offline storage and playback]: https://shaka-player-demo.appspot.com/docs/api/tutorial-offline.html
 
 
-## Dependencies ##
+## Platform and browser support matrix
 
-Most of the tools you need to work on the Shaka Player are included in the
-sources, including the [Closure Compiler][], [gjslint][], [JSDoc][], and
-[Jasmine][].
+|Browser    |Windows   |Mac      |Linux    |Android  |iOS >= 12 |ChromeOS|Other|
+|:---------:|:--------:|:-------:|:-------:|:-------:|:--------:|:------:|:---:|
+|Chrome¹    |**Y**     |**Y**    |**Y**    |**Y**    |**Native**|**Y**   | -   |
+|Firefox¹   |**Y**     |**Y**    |**Y**    |untested⁵|**Native**| -      | -   |
+|Edge¹      |**Y**     | -       | -       | -       | -        | -      | -   |
+|Edge Chromium|**Y**     |**Y**    |**Y**     |untested⁵|**Native**| -      | -   |
+|IE         | N        | -       | -       | -       | -        | -      | -   |
+|Safari¹    | -        |**Y**    | -       | -       |**iPadOS 13<br>Native**| - | - |
+|Opera¹     |untested⁵ |untested⁵|untested⁵|untested⁵|**Native**| -      | -   |
+|Chromecast²| -        | -       | -       | -       | -        | -      |**Y**|
+|Tizen TV³  | -        | -       | -       | -       | -        | -      |**Y**|
+|WebOS⁶     | -        | -       | -       | -       | -        | -      |**Y**|
+|Xbox One   | -        | -       | -       | -       | -        | -      |**Y**|
 
-The build scripts assume the presence of tools which are readily available on
-Linux and Mac, such as bash, python, git, and java.  For Windows, you can
-[use cygwin][].
+NOTES:
+ - ¹: On macOS, only Safari 12+ is supported.  On iOS, only iOS 12+ is
+   supported.  Older versions will be rejected.
+ - ²: The latest stable Chromecast firmware is tested. Both sender and receiver
+   can be implemented with Shaka Player.
+ - ³: Tizen 2017 model is actively tested and supported by the Shaka Player
+   team. Tizen 2016 model is community-supported and untested by us.
+ - ⁵: These are expected to work, but are not actively tested by the Shaka
+   Player team.
+ - ⁶: These are expected to work, but are community-supported and untested by
+   us.
+     - Official support for LG WebOS TV:
+       https://github.com/google/shaka-player/issues/1330
 
-The Closure Compiler is built with Java JRE 7, so you must have JRE 7 or newer
-in order to compile Shaka Player.
+We support iOS 12+ through Apple's native HLS player.  We provide the same
+top-level API, but we just set the video's `src` element to the manifest/media.
+So we are dependent on the browser supporting the manifests.
 
-[Closure Compiler]: https://developers.google.com/closure/compiler/
-[gjslint]: https://developers.google.com/closure/utilities/docs/linter_howto
-[JSDoc]: http://usejsdoc.org/
-[Jasmine]: http://jasmine.github.io/2.1/introduction.html
-[use cygwin]: http://shaka-player-demo.appspot.com/docs/tutorial-windows.html
+### Shaka Player Embedded (for native iOS)
 
+We have another project called [Shaka Player Embedded][] which offers the same
+features and similar APIs for native apps on iOS. This project uses its own
+media stack, which allows it to play content that would otherwise not be
+supported. This supports both DASH and HLS manifests.
 
-## Mailing list ##
-
-We have a [public mailing list][] for discussion and announcements.  To receive
-notifications about new versions, please join the list.  You can also use the
-list to ask questions or discuss Shaka Player development.
-
-[public mailing list]: https://groups.google.com/forum/#!forum/shaka-player-users
-
-
-## Documentation ##
-
-We have detailed documentation which is generated from the sources using JSDoc.
-A pre-rendered version of this documentation is available on the web at
-http://shaka-player-demo.appspot.com/docs/index.html .  This will be updated
-with each release, but you can generate the same docs yourself at any time:
-```Shell
-./build/docs.sh
-```
-
-If you are new to the project, we recommend you start by browsing the docs,
-in particular [the tutorials][].  This landing page is very brief, and only
-covers the most basic information about the project.
-
-[the tutorials]: http://shaka-player-demo.appspot.com/docs/tutorial-player.html
+[Shaka Player Embedded]: https://github.com/google/shaka-player-embedded
 
 
-## Getting Sources ##
+## Manifest format support matrix
 
-Up-to-date sources can be obtained from http://github.com/google/shaka-player .
+|Format|Video On-Demand|Live |Event|In-Progress Recording|
+|:----:|:-------------:|:---:|:---:|:-------------------:|
+|DASH  |**Y**          |**Y**| -   |**Y**                |
+|HLS   |**Y**          |**Y**|**Y**| -                   |
 
+You can also create a [manifest parser plugin][] to support custom manifest
+formats.
 
-## Building ##
-
-The development process is documented in more detail [in our generated docs][],
-but in short, you can build the library by running:
-```Shell
-./build/all.sh
-```
-
-By default, we create three builds:
-* shaka-player.compiled.js (full build)
-* shaka-player.vod.js (DASH MP4 VOD content w/ SegmentBase only)
-* shaka-player.live.js (DASH MP4 live content w/ Segment{Template,List} only)
-
-You can create custom builds by passing arguments to build/build.sh.  See
-build/all.sh and build/build.sh for details.
-
-Compiling Shaka Player requires Java JRE 7 or greater, but you can use the
-library in uncompiled mode without Java.  Just generate the closure
-dependencies by running:
-```Shell
-./build/gendeps.sh
-```
-
-[in our generated docs]: http://shaka-player-demo.appspot.com/docs/tutorial-dev.html
+[manifest parser plugin]: https://shaka-player-demo.appspot.com/docs/api/tutorial-manifest-parser.html
 
 
-## Running ##
+## DASH features
 
-The library comes with a test app that can be used to tinker with all of the
-library's basic functionality.  The test app (index.html and app.js in the
-sources) is meant to be used by making the source folder available to a local
-web server and pointing your browser at it.
+DASH features supported:
+ - VOD, Live, and In-Progress Recordings (dynamic VOD content)
+ - MPD@timeShiftBufferDepth for seeking backward in Live streams
+ - Multi-period content (static and dynamic)
+ - Xlink elements (actuate=onLoad only, resolve-to-zero, fallback content)
+ - All forms of segment index info: SegmentBase@indexRange, SegmentTimeline,
+   SegmentTemplate@duration, SegmentTemplate@index, SegmentList
+ - Multi-codec/multi-container manifests (we will negotiate support with the
+   browser and choose the best ones)
+ - Encrypted content (including custom ContentProtection schemas, PSSH in the
+   manifest)
+ - Key rotation
+ - Trick mode tracks
+ - WebVTT and TTML
+ - CEA-608/708 captions
 
-A hosted version of the test app is also available at
-http://shaka-player-demo.appspot.com/ for your convenience.
+DASH features **not** supported:
+ - Xlink with actuate=onRequest
+ - Manifests without any segment info:
+   https://github.com/google/shaka-player/issues/1088
+ - Changing codecs during a presentation (unsupported by MSE)
+ - Multiple trick mode tracks for the same resolution at varying framerates or
+   bitrates
+ - Timescales so large that timestamps cannot be represented as integers in
+   JavaScript (2^53): https://github.com/google/shaka-player/issues/1667
 
 
-## Updating ##
+## HLS features
 
-Simply pull new sources from github and enjoy!
-```Shell
-git pull --rebase
-```
+HLS features supported:
+ - VOD, Live, and Event types
+ - Low-latency streaming with partial segments, preload hints, and delta updates
+ - Discontinuity
+ - ISO-BMFF / MP4 / CMAF support
+ - MPEG-2 TS support (transmuxing provided by [mux.js][] v5.7.0+, must be
+   separately included)
+ - WebVTT and TTML
+ - CEA-608/708 captions
+ - Encrypted content with PlayReady and Widevine
+ - Encrypted content with FairPlay (Safari on macOS and iOS 12+ only)
+
+HLS features **not** supported:
+ - Key rotation: https://github.com/google/shaka-player/issues/917
+ - I-frame-only playlists: https://github.com/google/shaka-player/issues/742
+ - Raw AAC, MP3, etc (without an MP4 container):
+   https://github.com/google/shaka-player/issues/2337
+ - Low-latency streaming with blocking playlist reload
+
+[mux.js]: https://github.com/videojs/mux.js/releases
 
 
-## Design Overview ##
+## DRM support matrix
 
-The main entities you care about are [shaka.player.Player][],
-[shaka.player.DashVideoSource][], and [shaka.player.DrmInfo.Config][].
-In short, you construct a player and give it a \<video\> tag, then you
-construct a DASH video source and give it a manifest URL and an optional DRM
-callback.  Your DRM callback returns DrmInfo.Config objects to describe your
-DRM setup.  You load this video source into the player to begin playback.
+|Browser   |Widevine  |PlayReady|FairPlay |ClearKey⁶ |
+|:--------:|:--------:|:-------:|:-------:|:--------:|
+|Chrome¹   |**Y**     | -       | -       |**Y**     |
+|Firefox²  |**Y**     | -       | -       |**Y**     |
+|Edge³     | -        |**Y**    | -       | -        |
+|Edge Chromium|**Y**     |**Y**    | -       |**Y**     |
+|Safari    | -        | -       |**Y**    | -        |
+|Opera     |untested⁵ | -       | -       |untested⁵ |
+|Chromecast|**Y**     |**Y**    | -       |untested⁵ |
+|Tizen TV  |**Y**     |**Y**    | -       |untested⁵ |
+|WebOS⁷    |untested⁷ |untested⁷| -       |untested⁷ |
+|Xbox One  | -        |**Y**    | -       | -        |
 
-The player handles high-level playback and DRM, while the video source deals
-with streaming and all of the low-level parts of adaptive playback.  The DRM
-scheme info is an explicit set of parameters for DRM, and contains everything
-the library can't glean from a DASH manifest.
+Other DRM systems should work out of the box if they are interoperable and
+compliant to the EME spec.
 
-More detailed information and walkthroughs with fully-functional sample code
-can be found in [the tutorials][].
+NOTES:
+ - ¹: Only official Chrome builds contain the Widevine CDM.  Chromium built from
+   source does not support DRM.
+ - ²: DRM must be enabled by the user.  The first time a Firefox user visits a
+   site with encrypted media, the user will be prompted to enable DRM.
+ - ³: PlayReady in Edge does not seem to work on a VM or over Remote Desktop.
+ - ⁵: These are expected to work, but are not actively tested by the Shaka
+   Player team.
+ - ⁶: ClearKey is a useful tool for debugging, and does not provide actual
+   content security.
+ - ⁷: These are expected to work, but are community-supported and untested by
+   us.
 
-[shaka.player.Player]: http://shaka-player-demo.appspot.com/docs/shaka.player.Player.html
-[shaka.player.DashVideoSource]: http://shaka-player-demo.appspot.com/docs/shaka.player.DashVideoSource.html
-[shaka.player.DrmInfo.Config]: http://shaka-player-demo.appspot.com/docs/shaka.player.DrmInfo.html#Config
-[the tutorials]: http://shaka-player-demo.appspot.com/docs/tutorial-player.html
+|Manifest  |Widevine  |PlayReady|FairPlay |ClearKey  |
+|:--------:|:--------:|:-------:|:-------:|:--------:|
+|DASH      |**Y**     |**Y**    | -       |**Y**     |
+|HLS       |**Y**     |**Y**    |**Y** ¹  | -        |
+
+NOTES:
+ - ¹: We support FairPlay through Apple's native HLS player.
+
+
+## Media container and subtitle support
+
+Shaka Player supports:
+  - ISO-BMFF / CMAF / MP4
+    - Depends on browser support for the container via MediaSource
+    - Can parse "sidx" box for DASH's SegmentBase@indexRange and
+      SegmentTemplate@index
+    - Can find and parse "tfdt" box to find segment start time in HLS
+  - WebM
+    - Depends on browser support for the container via MediaSource
+    - Can parse [cueing data][] elements for DASH's SegmentBase@indexRange and
+      SegmentTemplate@index
+    - Not supported in HLS
+  - MPEG-2 TS
+    - With help from [mux.js][] v5.7.0+, can be played on any browser which
+      supports MP4
+    - Can find and parse timestamps to find segment start time in HLS
+  - WebVTT
+    - Supported in both text form and embedded in MP4
+  - TTML
+    - Supported in both XML form and embedded in MP4
+  - CEA-608
+    - Supported embedded in MP4
+    - With help from [mux.js][] v5.7.0+, supported embedded in TS
+  - CEA-708
+    - Supported embedded in MP4
+    - With help from [mux.js][] v5.7.0+, supported embedded in TS
+  - SubRip (SRT)
+    - UTF-8 encoding only
+  - LyRiCs (LRC)
+    - UTF-8 encoding only
+  - SubStation Alpha (SSA, ASS)
+    - UTF-8 encoding only
+  - SubViewer (SBV)
+    - UTF-8 encoding only
+
+Subtitles are rendered by the browser by default. Applications can create a
+[text display plugin][] for customer rendering to go beyond browser-supported
+attributes.
+
+[cueing data]: https://www.webmproject.org/docs/container/#cueing-data
+[text display plugin]: https://nightly-dot-shaka-player-demo.appspot.com/docs/api/shaka.extern.TextDisplayer.html
+<!-- TODO: replace with a link to a TextDisplayer tutorial -->
+
+
+## Documentation & Important Links ##
+
+ * [Demo](https://shaka-player-demo.appspot.com)([sources](demo/))
+ * [API documentation](https://shaka-player-demo.appspot.com/docs/api/index.html)
+ * [Tutorials](https://shaka-player-demo.appspot.com/docs/api/tutorial-welcome.html)
+ * [Hosted builds on Google Hosted Libraries](https://developers.google.com/speed/libraries/#shaka-player)
+ * [Hosted builds on jsDelivr](https://www.jsdelivr.com/package/npm/shaka-player)
+ * [Development roadmap](roadmap.md)
+ * [Announcement list](https://groups.google.com/forum/#!forum/shaka-player-users)
+     ([join](docs/announcement-list-join-group.png) for release and survey
+      announcements)
+
+
+## FAQ ##
+
+For general help and before filing any bugs, please read the
+[FAQ](docs/tutorials/faq.md).
 
 
 ## Contributing ##
 
 If you have improvements or fixes, we would love to have your contributions.
-Please read CONTRIBUTIONS.md for more information on the process we would like
-contributors to follow.
+Please read [CONTRIBUTING.md](CONTRIBUTING.md)
+for more information on the process we would like contributors to follow.
 
-## Important changes ##
 
-- Allow custom seek range for LIVE video from 0, e.g. [0, 230], see [Link](https://github.com/tvoli/shaka-player/commit/8edb8065d5f85e2edbbc0aca2cc46a1b7abf894d)
+## Framework Integrations ##
 
-- Segmented subtitles, see [Link](https://github.com/tvoli/shaka-player/commit/dd039febf156aa7ae41ca55f15c1791c0334d1b9), [Link](https://github.com/tvoli/shaka-player/commit/e176266bb2322d46e612ff1d89c7df2a692782be), [Fix](https://github.com/tvoli/shaka-player/commit/e6b7e389da630858b58434217b2bdf6708b3bdf2), [Addon](https://github.com/tvoli/shaka-player/commit/231820debb5825a197745d3f46a004b9dc8b382f)
-[Fix](https://github.com/tvoli/shaka-player/commit/5c89df3e9840236514f5ee5798e6a85bcccf99a9)
+The Shaka team doesn't have the bandwidth and experience to provide guidance and
+support for integrating Shaka Player with specific frameworks, but some of our
+users have successfully done so and created tutorials to help other beginners.
 
-- Mpd PreProcessor, see [Link](https://github.com/tvoli/shaka-player/commit/b96d6c7a6c9a80d7a0f15a94a18af4378e6850d1)
+Shaka + ReactJS integrations:
+- https://github.com/matvp91/shaka-player-react
+- https://github.com/amit08255/shaka-player-react-with-ui-config
+
+Shaka + Next.js integration:
+- https://github.com/amit08255/shaka-player-react-with-ui-config/tree/master/nextjs-shaka-player
+
+Shaka + Vue.js integrations:
+- https://github.com/davidjamesherzog/shaka-player-vuejs
+
+Shaka + Nuxt.js integration:
+- https://github.com/davidjamesherzog/shaka-player-nuxtjs
+
+Shaka + video.js integration:
+- https://github.com/davidjamesherzog/videojs-shaka
+
+Shaka + Angular integration:
+- https://github.com/PatrickKalkman/shaka-player-angular
+
+If you have published Shaka Integration code/tutorials, please feel free to submit PRs
+to add them to this list, we will gladly approve!
