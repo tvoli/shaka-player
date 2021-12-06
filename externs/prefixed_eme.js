@@ -1,18 +1,7 @@
-/**
- * @license
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*! @license
+ * Shaka Player
+ * Copyright 2016 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 /**
@@ -48,22 +37,31 @@ HTMLMediaElement.prototype.webkitGenerateKeyRequest =
 
 
 /**
+ * An unprefixed variant of the webkit-prefixed API from EME v0.1b.
+ * @param {string} keySystem
+ * @param {!Uint8Array} initData
+ */
+HTMLMediaElement.prototype.generateKeyRequest =
+    function(keySystem, initData) {};
+
+
+/**
  * @param {string} mimeType
- * @param {string=} opt_keySystem
+ * @param {string=} keySystem
  * @return {string} '', 'maybe', or 'probably'
+ * @override the standard one-argument version
  */
 HTMLVideoElement.prototype.canPlayType =
-    function(mimeType, opt_keySystem) {};
-
+    function(mimeType, keySystem) {};
 
 
 /**
  * @constructor
  * @param {string} type
- * @param {Object=} opt_eventInitDict
+ * @param {Object=} eventInitDict
  * @extends {Event}
  */
-function MediaKeyEvent(type, opt_eventInitDict) {}
+function MediaKeyEvent(type, eventInitDict) {}
 
 
 /**
@@ -81,14 +79,14 @@ MediaKeyEvent.prototype.sessionId;
 
 
 /**
- * @type {Uint8Array}
+ * @type {!Uint8Array}
  * @const
  */
 MediaKeyEvent.prototype.initData;
 
 
 /**
- * @type {Uint8Array}
+ * @type {!Uint8Array}
  * @const
  */
 MediaKeyEvent.prototype.message;
@@ -120,7 +118,6 @@ MediaKeyEvent.prototype.systemCode;
  * @const
  */
 MediaKeyEvent.prototype.target;
-
 
 
 /** @constructor */

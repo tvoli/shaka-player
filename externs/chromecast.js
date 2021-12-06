@@ -1,28 +1,17 @@
-/**
- * @license
- * Copyright 2015 Google Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+/*! @license
+ * Shaka Player
+ * Copyright 2016 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
  */
 
 /**
  * @fileoverview Google Cast API externs.
- * Based on the {@link https://goo.gl/psEjEh Google Cast API}.
+ * Based on the {@link https://bit.ly/CastApi Google Cast API}.
  * @externs
  */
 
 
-/** @const */
+/** @type {function(boolean)} */
 var __onGCastApiAvailable;
 
 
@@ -38,189 +27,249 @@ cast.receiver = {};
 cast.receiver.system = {};
 
 
-cast.receiver.system.DisconnectReason = {
-  REQUESTED_BY_SENDER: 'requested by sender',
-  ERROR: 'error',
-  UNKNOWN: 'unknown'
+cast.receiver.system.SystemVolumeData = class {
+  constructor() {
+    /** @type {number} */
+    this.level;
+
+    /** @type {boolean} */
+    this.muted;
+  }
 };
 
 
+cast.receiver.CastMessageBus = class {
+  /** @param {*} message */
+  broadcast(message) {}
+
+  /**
+   * @param {string} senderId
+   * @return {!cast.receiver.CastChannel}
+   */
+  getCastChannel(senderId) {}
+};
+
+
+/** @type {Function} */
+cast.receiver.CastMessageBus.prototype.onMessage;
+
 
 /**
- * @param {string} namespace
- * @param {string} ipcChannel
- * @param {Array.<string>} senders
- * @param {string=} opt_messageType
  * @constructor
+ * @struct
  */
-cast.receiver.CastMessageBus = function(
-    namespace, ipcChannel, senders, opt_messageType) {};
+cast.receiver.CastMessageBus.Event = class {};
 
 
-/**
- * @param {*} message
- */
-cast.receiver.CastMessageBus.prototype.broadcast = function(message) {};
-
-
-
-/** @constructor */
-cast.receiver.CastReceiverManager = function() {};
-
-
-
-/** @constructor */
-cast.receiver.CastReceiverManager.Config = function() {};
-
-
-/** @return {cast.receiver.CastReceiverManager} */
-cast.receiver.CastReceiverManager.getInstance = function() {};
-
-
-/**
- * @param {string} namespace
- * @param {string=} opt_messageType
- * @return {cast.receiver.CastMessageBus}
- */
-cast.receiver.CastReceiverManager.prototype.getCastMessageBus = function(
-    namespace, opt_messageType) {};
-
-
-/** @return {Array.<string>} */
-cast.receiver.CastReceiverManager.prototype.getSenders = function() {};
-
-
-/**
- * @param {cast.receiver.CastReceiverManager.Config=} opt_config
- */
-cast.receiver.CastReceiverManager.prototype.start = function(opt_config) {};
-
-
-/** @const */
-chrome.cast = {};
-
-
-/**
- * @param {chrome.cast.ApiConfig} apiConfig
- * @param {Function} successCallback
- * @param {Function} errorCallback
- */
-chrome.cast.initialize = function(apiConfig, successCallback, errorCallback) {};
-
-
-/**
- * @param {Function} successCallback
- * @param {Function} errorCallback
- * @param {chrome.cast.SessionRequest=} opt_sessionRequest
- */
-chrome.cast.requestSession = function(
-    successCallback, errorCallback, opt_sessionRequest) {};
-
-
-
-/**
- * @param {chrome.cast.SessionRequest} sessionRequest
- * @param {Function} sessionListener
- * @param {Function} receiverListener
- * @param {Object=} opt_autoJoinPolicy
- * @param {Object=} opt_defaultActionPolicy
- * @constructor
- */
-chrome.cast.ApiConfig = function(
-    sessionRequest,
-    sessionListener,
-    receiverListener,
-    opt_autoJoinPolicy,
-    opt_defaultActionPolicy) {};
-
-
-/** @typedef {string} */
-chrome.cast.Capability;
-
-
-
-/**
- * @param {string} url
- * @constructor
- */
-chrome.cast.Image = function(url) {};
-
-
-
-/**
- * @param {string} label
- * @param {string} friendlyName
- * @param {Array.<chrome.cast.Capability>=} opt_capabilities
- * @param {chrome.cast.Volume=} opt_volume
- * @constructor
- */
-chrome.cast.Receiver = function(
-    label, friendlyName, opt_capabilities, opt_volume) {};
-
-
-
-/**
- * @param {string} sessionId
- * @param {string} appId
- * @param {string} displayName
- * @param {chrome.cast.Image} appImages
- * @param {chrome.cast.Receiver} receiver
- * @constructor
- */
-chrome.cast.Session = function(
-    sessionId, appId, displayName, appImages, receiver) {};
+/** @type {?} */
+cast.receiver.CastMessageBus.Event.prototype.data;
 
 
 /** @type {string} */
-chrome.cast.Session.prototype.sessionId;
+cast.receiver.CastMessageBus.Event.prototype.senderId;
 
 
-/**
- * @param {string} namespace
- * @param {Function} listener
- */
-chrome.cast.Session.prototype.addMessageListener = function(
-    namespace, listener) {};
+cast.receiver.CastChannel = class {
+  /** @param {*} message */
+  send(message) {}
+};
 
 
-/**
- * @param {Function} listener
- */
-chrome.cast.Session.prototype.addUpdateListener = function(listener) {};
+cast.receiver.CastReceiverManager = class {
+  constructor() {
+    /** @type {Function} */
+    this.onSenderConnected;
+
+    /** @type {Function} */
+    this.onSenderDisconnected;
+
+    /** @type {Function} */
+    this.onSystemVolumeChanged;
+  }
+
+  /** @return {cast.receiver.CastReceiverManager} */
+  static getInstance() {}
+
+  /**
+   * @param {string} namespace
+   * @param {string=} messageType
+   * @return {cast.receiver.CastMessageBus}
+   */
+  getCastMessageBus(namespace, messageType) {}
+
+  /** @return {Array.<string>} */
+  getSenders() {}
+
+  start() {}
+
+  stop() {}
+
+  /** @return {?cast.receiver.system.SystemVolumeData} */
+  getSystemVolume() {}
+
+  /** @param {number} level */
+  setSystemVolumeLevel(level) {}
+
+  /** @param {number} muted */
+  setSystemVolumeMuted(muted) {}
+
+  /** @return {boolean} */
+  isSystemReady() {}
+};
 
 
-/**
- * @param {string} namespace
- * @param {!Object|string} message
- * @param {Function} successCallback
- * @param {Function} errorCallback
- */
-chrome.cast.Session.prototype.sendMessage = function(
-    namespace, message, successCallback, errorCallback) {};
+/** @const */
+cast.receiver.media = {};
 
 
-/**
- * @param {Function} successCallback
- * @param {Function} errorCallback
- */
-chrome.cast.Session.prototype.stop = function(
-    successCallback, errorCallback) {};
+/** @enum {number} */
+cast.receiver.media.MetadataType = {
+  'GENERIC': 0,
+  'MOVIE': 1,
+  'TV_SHOW': 2,
+  'MUSIC_TRACK': 3,
+  'PHOTO': 4,
+};
 
 
+/** @const */
+cast.__platform__ = class {
+  /**
+   * @param {string} type
+   * @return {boolean}
+   */
+  static canDisplayType(type) {}
+};
 
-/**
- * @param {string} appId
- * @param {Array.<chrome.cast.Capability>=} opt_capabilities
- * @param {number=} opt_timeout
- * @constructor
- */
-chrome.cast.SessionRequest = function(appId, opt_capabilities, opt_timeout) {};
+
+/** @const */
+var chrome = {};
 
 
+/** @const */
+chrome.cast = class {
+  /**
+   * @param {chrome.cast.ApiConfig} apiConfig
+   * @param {Function} successCallback
+   * @param {Function} errorCallback
+   */
+  static initialize(apiConfig, successCallback, errorCallback) {}
 
-/**
- * @param {number=} opt_level
- * @param {boolean=} opt_muted
- * @constructor
- */
-chrome.cast.Volume = function(opt_level, opt_muted) {};
+  /**
+   * @param {Function} successCallback
+   * @param {Function} errorCallback
+   * @param {chrome.cast.SessionRequest=} sessionRequest
+   */
+  static requestSession(successCallback, errorCallback, sessionRequest) {}
+};
+
+
+/** @type {boolean} */
+chrome.cast.isAvailable;
+
+
+/** @const */
+chrome.cast.SessionStatus = {};
+
+
+/** @type {string} */
+chrome.cast.SessionStatus.STOPPED;
+
+
+chrome.cast.ApiConfig = class {
+  /**
+   * @param {chrome.cast.SessionRequest} sessionRequest
+   * @param {Function} sessionListener
+   * @param {Function} receiverListener
+   * @param {string=} autoJoinPolicy
+   * @param {string=} defaultActionPolicy
+   */
+  constructor(sessionRequest, sessionListener, receiverListener,
+      autoJoinPolicy, defaultActionPolicy) {}
+};
+
+
+chrome.cast.Error = class {
+  /**
+   * @param {string} code
+   * @param {string=} description
+   * @param {Object=} details
+   */
+  constructor(code, description, details) {
+    /** @type {string} */
+    this.code;
+
+    /** @type {?string} */
+    this.description;
+
+    /** @type {Object} */
+    this.details;
+  }
+};
+
+
+chrome.cast.Receiver = class {
+  constructor() {}
+};
+
+
+/** @const {string} */
+chrome.cast.Receiver.prototype.friendlyName;
+
+
+chrome.cast.Session = class {
+  constructor() {
+    /** @type {string} */
+    this.sessionId;
+
+    /** @type {string} */
+    this.status;
+
+    /** @type {chrome.cast.Receiver} */
+    this.receiver;
+  }
+
+  /**
+   * @param {string} namespace
+   * @param {Function} listener
+   */
+  addMessageListener(namespace, listener) {}
+
+  /**
+   * @param {string} namespace
+   * @param {Function} listener
+   */
+  removeMessageListener(namespace, listener) {}
+
+  /** @param {Function} listener */
+  addUpdateListener(listener) {}
+
+  /** @param {Function} listener */
+  removeUpdateListener(listener) {}
+
+  /**
+   * @param {Function} successCallback
+   * @param {Function} errorCallback
+   */
+  leave(successCallback, errorCallback) {}
+
+  /**
+   * @param {string} namespace
+   * @param {!Object|string} message
+   * @param {Function} successCallback
+   * @param {Function} errorCallback
+   */
+  sendMessage(namespace, message, successCallback, errorCallback) {}
+
+  /**
+   * @param {Function} successCallback
+   * @param {Function} errorCallback
+   */
+  stop(successCallback, errorCallback) {}
+};
+
+
+chrome.cast.SessionRequest = class {
+  /** @param {string} appId */
+  constructor(appId) {}
+};
