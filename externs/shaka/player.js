@@ -617,7 +617,8 @@ shaka.extern.AdvancedDrmConfiguration;
  *         undefined),
  *   logLicenseExchange: boolean,
  *   updateExpirationTime: number,
- *   preferredKeySystems: !Array.<string>
+ *   preferredKeySystems: !Array.<string>,
+ *   keyRotationPeriod: number
  * }}
  *
  * @property {shaka.extern.RetryParameters} retryParameters
@@ -658,7 +659,8 @@ shaka.extern.AdvancedDrmConfiguration;
  * @property {!Array.<string>} preferredKeySystems
  *   <i>Defaults to an empty array. </i> <br>
  *   Specifies the priorties of available DRM key systems.
- *
+ * @property {number} keyRotationPeriod
+ *   The frequency in milliseconds of DRM key rotation.
  * @exportDoc
  */
 shaka.extern.DrmConfiguration;
