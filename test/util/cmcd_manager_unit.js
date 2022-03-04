@@ -33,13 +33,19 @@ describe('CmcdManager', () => {
   describe('Query serialization', () => {
     it('produces correctly serialized data', () => {
       const query = CmcdManager.toQuery(data);
-      const result = 'CMCD=br%3D52317%2Cbs%2Ccid%3D%22xyz%22%2C' +
-                     'com.test-exists%2Ccom.test-hello%3D%22world%22%2C' +
-                     'com.test-testing%3D1234%2Ccom.test-token%3Ds%2C' +
-                     'd%3D6067%2Cmtp%3D10000%2C' +
-                     'nor%3D%22..%252Ftesting%252F3.m4v%22%2C' +
-                     'nrr%3D%220-99%22%2C' +
-                     'sid%3D%22c936730c-031e-4a73-976f-92bc34039c60%22';
+      const result = 'br=52317,bs,cid="xyz",com.test-exists,' +
+                     'com.test-hello="world",com.test-testing=1234,' +
+                     'com.test-token=s,d=6067,mtp=10000,' +
+                     'nor="..%2Ftesting%2F3.m4v",nrr="0-99",' +
+                     'sid="c936730c-031e-4a73-976f-92bc34039c60"';
+      expect(query).toBe(result);
+    });
+
+    it('escapes reserve character in string values', () => {
+      const query = CmcdManager.toQuery({
+        'com.test-escape': 'Double "Quotes"',
+      });
+      const result = 'com.test-escape="Double \\"Quotes\\""';
       expect(query).toBe(result);
     });
   });
@@ -77,12 +83,20 @@ describe('CmcdManager', () => {
           {start: 35, end: 40},
         ],
       }),
-      getManifest: () => /** @type {shaka.extern.Manifest} */({
-        variants: [
-          {video: {bandwidth: 50000}},
-          {video: {bandwidth: 5000000}},
-        ],
-      }),
+      getVariantTracks: () => /** @type {Array.<shaka.extern.Track>} */([
+        {
+          type: 'variant',
+          bandwidth: 50000,
+          videoBandwidth: 40000,
+          audioBandWidth: 10000,
+        },
+        {
+          type: 'variant',
+          bandwidth: 5000000,
+          videoBandwidth: 4000000,
+          audioBandWidth: 1000000,
+        },
+      ]),
       getPlaybackRate: () => 1,
       getCurrentTime: () => 10,
     };
@@ -169,7 +183,7 @@ describe('CmcdManager', () => {
         const uri = 'https://test.com/test.mpd?CMCD=bl%3D21200%2Cbr%3D5234%2Ccid%3D%22' +
           'testing%22%2Cd%3D3330%2Cmtp%3D10000%2Cot%3Dv%2Csf%3Dd%2C' +
           'sid%3D%222ed2d1cd-970b-48f2-bfb3-50a79e87cfa3%22%2Cst%3Dv%2Csu%2C' +
-          'tb%3D5000';
+          'tb%3D4000';
         expect(r.uris[0]).toBe(uri);
       });
 
@@ -206,7 +220,7 @@ describe('CmcdManager', () => {
         cmcdManager.applySegmentData(r, segmentInfo);
         expect(r.headers).toEqual({
           'testing': '1234',
-          'CMCD-Object': 'br=5234,d=3330,ot=v,tb=5000',
+          'CMCD-Object': 'br=5234,d=3330,ot=v,tb=4000',
           'CMCD-Request': 'bl=21200,mtp=10000,su',
           'CMCD-Session': 'cid="testing",sf=d,' +
                           'sid="2ed2d1cd-970b-48f2-bfb3-50a79e87cfa3",st=v',

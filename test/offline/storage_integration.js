@@ -1323,7 +1323,7 @@ filterDescribe('Storage', storageSupport, () => {
     const testSchemeMimeType = 'application/x-test-manifest';
     const manifestUri = 'test:sintel';
 
-    // Regression test for https://github.com/google/shaka-player/issues/2781
+    // Regression test for https://github.com/shaka-project/shaka-player/issues/2781
     it('does not cache failures or cancellations', async () => {
       /** @type {shaka.offline.Storage} */
       const storage = new shaka.offline.Storage();
@@ -1381,6 +1381,8 @@ filterDescribe('Storage', storageSupport, () => {
       pixelAspectRatio: '59:54',
       hdr: null,
       mimeType: 'video/mp4,audio/mp4',
+      audioMimeType: 'audio/mp4',
+      videoMimeType: 'video/mp4',
       codecs: 'mp4,mp4',
       audioCodec: 'mp4',
       videoCodec: 'mp4',
@@ -1423,6 +1425,8 @@ filterDescribe('Storage', storageSupport, () => {
       pixelAspectRatio: null,
       hdr: null,
       mimeType: 'text/vtt',
+      audioMimeType: null,
+      videoMimeType: null,
       codecs: 'vtt',
       audioCodec: null,
       videoCodec: null,

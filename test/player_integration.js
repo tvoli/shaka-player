@@ -299,7 +299,7 @@ describe('Player', () => {
       expect(variantTrack.language).toBe(textTrack.language);
     });
 
-    // Repro for https://github.com/google/shaka-player/issues/1879.
+    // Repro for https://github.com/shaka-project/shaka-player/issues/1879.
     it('appends cues when enabled initially', async () => {
       let cues = [];
       /** @const {!shaka.test.FakeTextDisplayer} */
@@ -356,7 +356,7 @@ describe('Player', () => {
       expect(cues.length).toBeGreaterThan(0);
     });
 
-    // https://github.com/google/shaka-player/issues/2553
+    // https://github.com/shaka-project/shaka-player/issues/2553
     it('does not change the selected track', async () => {
       player.configure('streaming.alwaysStreamText', false);
       await player.load('test:forced_subs_simulation_compiled');
@@ -433,6 +433,22 @@ describe('Player', () => {
       expect(video.playbackRate).toBe(1);
     });
 
+    it('in sequence mode', async () => {
+      const testSchemeMimeType = 'application/x-test-manifest';
+      player = new compiledShaka.Player(video);
+      await player.load('test:sintel_sequence_compiled', 0, testSchemeMimeType);
+      expect(player.getManifest().sequenceMode).toBe(true);
+
+      // Ensure the video plays.
+      video.play();
+      await waiter.waitUntilPlayheadReachesOrFailOnTimeout(video, 5, 10);
+
+      // Seek the video, and see if it can continue playing from that point.
+      video.currentTime = 20;
+      // Expect that we can then reach the end of the video.
+      await waiter.timeoutAfter(20).waitForEnd(video);
+    });
+
     // Regression test for #2326.
     //
     // 1. Construct an instance with a video element.
@@ -482,7 +498,7 @@ describe('Player', () => {
       expect(configuredTextDisplayer).toBe(textDisplayer);
     });
 
-    // Regression test for https://github.com/google/shaka-player/issues/1187
+    // Regression test for https://github.com/shaka-project/shaka-player/issues/1187
     it('does not throw on destroy', async () => {
       await player.load('test:sintel_compiled');
       video.play();
@@ -513,7 +529,7 @@ describe('Player', () => {
     // and the track selection was ignored.  Because this bug involved
     // interactions between Player and StreamingEngine, it is an integration
     // test and not a unit test.
-    // https://github.com/google/shaka-player/issues/1119
+    // https://github.com/shaka-project/shaka-player/issues/1119
     it('allows early selection of specific tracks', async () => {
       /** @type {!jasmine.Spy} */
       const streamingListener = jasmine.createSpy('listener');
@@ -548,7 +564,7 @@ describe('Player', () => {
     // switchingPeriods_ in Player.  Because this bug involved interactions
     // between Player and StreamingEngine, it is an integration test and not a
     // unit test.
-    // https://github.com/google/shaka-player/issues/1119
+    // https://github.com/shaka-project/shaka-player/issues/1119
     it('allows selection of tracks in subsequent loads', async () => {
       /** @type {!jasmine.Spy} */
       const streamingListener = jasmine.createSpy('listener');
@@ -737,6 +753,7 @@ describe('Player', () => {
       expect(onQualityChange).toHaveBeenCalledWith(qualityChange1);
       expect(onQualityChange).toHaveBeenCalledWith(qualityChange2);
     });
+
     it('does not emit quality changes at start when disabled', async () => {
       player.configure('streaming.observeQualityChanges', false);
 
@@ -747,6 +764,44 @@ describe('Player', () => {
       // seconds, fail the test.
       await waiter.waitForMovementOrFailOnTimeout(video, 10);
       expect(onQualityChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('seek range', () => {
+    // Regression test for Issue #3675.
+    it('has a reasonable seek range after going from live to VOD', async () => {
+      const netEngine = player.getNetworkingEngine();
+      const startTime = Date.now();
+      netEngine.registerRequestFilter((type, request) => {
+        if (type != shaka.net.NetworkingEngine.RequestType.MANIFEST) {
+          return;
+        }
+        // Simulate a live stream by providing different manifests over time.
+        const time = (Date.now() - startTime) / 1000;
+        const manifestNumber = Math.min(5, Math.floor(0.5 + time / 2));
+        request.uris = [
+          '/base/test/test/assets/3675/dash_' + manifestNumber + '.mpd',
+        ];
+        console.log('getting manifest', request.uris);
+      });
+
+      // Play the stream.
+      await player.load('/base/test/test/assets/3675/dash_0.mpd');
+      video.play();
+
+      // Wait for the stream to be over.
+      eventManager.listen(player, 'error', Util.spyFunc(onErrorSpy));
+      /** @type {shaka.test.Waiter} */
+      const waiter = new shaka.test.Waiter(eventManager)
+          .timeoutAfter(20).failOnTimeout(true);
+      await waiter.waitForEnd(video);
+
+      // The stream should have transitioned to VOD by now.
+      expect(player.isLive()).toBe(false);
+
+      // Check that the final seek range is as expected.
+      const seekRange = player.seekRange();
+      expect(seekRange.end).toBe(14);
     });
   });
 
@@ -1024,9 +1079,9 @@ describe('Player', () => {
     it('add external chapters in vtt format', async () => {
       await player.load('test:sintel_no_text_compiled');
       const locationUri = new goog.Uri(location.href);
-      const partialUri = new goog.Uri('/base/test/test/assets/chapters.vtt');
-      const absoluteUri = locationUri.resolve(partialUri);
-      await player.addChaptersTrack(absoluteUri.toString(), 'en');
+      const partialUri1 = new goog.Uri('/base/test/test/assets/chapters.vtt');
+      const absoluteUri1 = locationUri.resolve(partialUri1);
+      await player.addChaptersTrack(absoluteUri1.toString(), 'en');
 
       await shaka.test.Util.delay(1.5);
 
@@ -1039,11 +1094,44 @@ describe('Player', () => {
       const chapter2 = chapters[1];
       expect(chapter2.title).toBe('Chapter 2');
       expect(chapter2.startTime).toBe(5);
-      expect(chapter2.endTime).toBe(30);
+      expect(chapter2.endTime).toBe(10);
       const chapter3 = chapters[2];
       expect(chapter3.title).toBe('Chapter 3');
-      expect(chapter3.startTime).toBe(30);
-      expect(chapter3.endTime).toBe(61.349);
+      expect(chapter3.startTime).toBe(10);
+      expect(chapter3.endTime).toBe(20);
+
+      const partialUri2 = new goog.Uri('/base/test/test/assets/chapters2.vtt');
+      const absoluteUri2 = locationUri.resolve(partialUri2);
+      await player.addChaptersTrack(absoluteUri2.toString(), 'en');
+
+      await shaka.test.Util.delay(1.5);
+
+      const chaptersUpdated = player.getChapters('en');
+      expect(chaptersUpdated.length).toBe(6);
+      const chapterUpdated1 = chaptersUpdated[0];
+      expect(chapterUpdated1.title).toBe('Chapter 1');
+      expect(chapterUpdated1.startTime).toBe(0);
+      expect(chapterUpdated1.endTime).toBe(5);
+      const chapterUpdated2 = chaptersUpdated[1];
+      expect(chapterUpdated2.title).toBe('Chapter 2');
+      expect(chapterUpdated2.startTime).toBe(5);
+      expect(chapterUpdated2.endTime).toBe(10);
+      const chapterUpdated3 = chaptersUpdated[2];
+      expect(chapterUpdated3.title).toBe('Chapter 3');
+      expect(chapterUpdated3.startTime).toBe(10);
+      expect(chapterUpdated3.endTime).toBe(20);
+      const chapterUpdated4 = chaptersUpdated[3];
+      expect(chapterUpdated4.title).toBe('Chapter 4');
+      expect(chapterUpdated4.startTime).toBe(20);
+      expect(chapterUpdated4.endTime).toBe(30);
+      const chapterUpdated5 = chaptersUpdated[4];
+      expect(chapterUpdated5.title).toBe('Chapter 5');
+      expect(chapterUpdated5.startTime).toBe(30);
+      expect(chapterUpdated5.endTime).toBe(40);
+      const chapterUpdated6 = chaptersUpdated[5];
+      expect(chapterUpdated6.title).toBe('Chapter 6');
+      expect(chapterUpdated6.startTime).toBe(40);
+      expect(chapterUpdated6.endTime).toBe(61.349);
     });
 
     it('add external chapters in srt format', async () => {
@@ -1051,11 +1139,11 @@ describe('Player', () => {
       const locationUri = new goog.Uri(location.href);
       const partialUri = new goog.Uri('/base/test/test/assets/chapters.srt');
       const absoluteUri = locationUri.resolve(partialUri);
-      await player.addChaptersTrack(absoluteUri.toString(), 'en');
+      await player.addChaptersTrack(absoluteUri.toString(), 'es');
 
       await shaka.test.Util.delay(1.5);
 
-      const chapters = player.getChapters('en');
+      const chapters = player.getChapters('es');
       expect(chapters.length).toBe(3);
       const chapter1 = chapters[0];
       expect(chapter1.title).toBe('Chapter 1');

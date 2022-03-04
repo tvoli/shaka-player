@@ -36,7 +36,7 @@ describe('Player', () => {
   const originalLogWarn = shaka.log.warning;
   const originalLogAlwaysWarn = shaka.log.alwaysWarn;
   const originalIsTypeSupported = window.MediaSource.isTypeSupported;
-  const originalDecodingInfo = window.shakaMediaCapabilities.decodingInfo;
+  const originalDecodingInfo = navigator.mediaCapabilities.decodingInfo;
 
   const fakeManifestUri = 'fake-manifest-uri';
   const fakeMimeType = 'application/test';
@@ -93,7 +93,7 @@ describe('Player', () => {
     // Since this is not an integration test, we don't want MediaCapabilities to
     // fail assertions based on browser support for types.  Pretend that all
     // video and audio types are supported.
-    window.shakaMediaCapabilities.decodingInfo = async (config) => {
+    navigator.mediaCapabilities.decodingInfo = async (config) => {
       await Promise.resolve();
       const videoType = config['video'] ?
           config['video'].contentType.split('/')[0] : null;
@@ -177,7 +177,7 @@ describe('Player', () => {
       shaka.log.alwaysWarn = originalLogAlwaysWarn;
       window.MediaSource.isTypeSupported = originalIsTypeSupported;
       shaka.media.ManifestParser.unregisterParserByMime(fakeMimeType);
-      window.shakaMediaCapabilities.decodingInfo = originalDecodingInfo;
+      navigator.mediaCapabilities.decodingInfo = originalDecodingInfo;
     }
   });
 
@@ -325,7 +325,7 @@ describe('Player', () => {
       // We used to fire the event /before/ filtering, which meant that for
       // multi-codec content, the application might select something which will
       // later be removed during filtering.
-      // https://github.com/google/shaka-player/issues/1119
+      // https://github.com/shaka-project/shaka-player/issues/1119
       it('fires after tracks have been filtered', async () => {
         streamingListener.and.callFake(() => {
           const tracks = player.getVariantTracks();
@@ -621,7 +621,7 @@ describe('Player', () => {
       expect(logWarnSpy).not.toHaveBeenCalled();
     });
 
-    // Regression test for https://github.com/google/shaka-player/issues/784
+    // Regression test for https://github.com/shaka-project/shaka-player/issues/784
     it('does not throw when overwriting serverCertificate', () => {
       player.configure({
         drm: {
@@ -798,7 +798,7 @@ describe('Player', () => {
       expect(newConfig.streaming.bufferBehind).toBe(77);
     });
 
-    // https://github.com/google/shaka-player/issues/1524
+    // https://github.com/shaka-project/shaka-player/issues/1524
     it('does not pollute other advanced DRM configs', () => {
       player.configure('drm.advanced.foo', {});
       player.configure('drm.advanced.bar', {});
@@ -1092,8 +1092,8 @@ describe('Player', () => {
         // Image tracks
         manifest.addImageStream(53, (stream) => {
           stream.originalId = 'thumbnail';
-          stream.width = 100;
-          stream.height = 200;
+          stream.width = 200;
+          stream.height = 400;
           stream.bandwidth = 10;
           stream.mimeType = 'image/jpeg';
           stream.tilesLayout = '1x1';
@@ -1115,6 +1115,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1149,6 +1151,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1183,6 +1187,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1217,6 +1223,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1251,6 +1259,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1285,6 +1295,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1319,6 +1331,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1353,6 +1367,8 @@ describe('Player', () => {
           pixelAspectRatio: '59:54',
           hdr: null,
           mimeType: 'video/mp4',
+          audioMimeType: 'audio/mp4',
+          videoMimeType: 'video/mp4',
           codecs: 'avc1.4d401f, mp4a.40.2',
           audioCodec: 'mp4a.40.2',
           videoCodec: 'avc1.4d401f',
@@ -1384,6 +1400,8 @@ describe('Player', () => {
           label: 'Spanish',
           kind: 'caption',
           mimeType: 'text/vtt',
+          audioMimeType: null,
+          videoMimeType: null,
           codecs: null,
           audioCodec: null,
           videoCodec: null,
@@ -1418,6 +1436,8 @@ describe('Player', () => {
           label: 'English',
           kind: 'caption',
           mimeType: 'application/ttml+xml',
+          audioMimeType: null,
+          videoMimeType: null,
           codecs: null,
           audioCodec: null,
           videoCodec: null,
@@ -1452,6 +1472,8 @@ describe('Player', () => {
           label: 'English',
           kind: 'caption',
           mimeType: 'application/ttml+xml',
+          audioMimeType: null,
+          videoMimeType: null,
           codecs: null,
           audioCodec: null,
           videoCodec: null,
@@ -1489,6 +1511,8 @@ describe('Player', () => {
           label: null,
           kind: null,
           mimeType: 'image/jpeg',
+          audioMimeType: null,
+          videoMimeType: null,
           codecs: null,
           audioCodec: null,
           videoCodec: null,
@@ -1503,8 +1527,8 @@ describe('Player', () => {
           audioBandwidth: null,
           videoBandwidth: null,
           bandwidth: 10,
-          width: 100,
-          height: 200,
+          width: 200,
+          height: 400,
           frameRate: null,
           pixelAspectRatio: null,
           hdr: null,
@@ -1668,8 +1692,8 @@ describe('Player', () => {
       expect(getActiveTextTrack().id).toBe(spanishTextTrack.id);
     });
 
-    // Regression test for https://github.com/google/shaka-player/issues/2906
-    // and https://github.com/google/shaka-player/issues/2909.
+    // Regression test for https://github.com/shaka-project/shaka-player/issues/2906
+    // and https://github.com/shaka-project/shaka-player/issues/2909.
     it('selectAudioLanguage() can choose role-less tracks', async () => {
       // For this test, we use a different (and simpler) manifest.
       // Both audio tracks are English; one has a role, and one has no roles.
@@ -1729,7 +1753,7 @@ describe('Player', () => {
       expect(getActiveVariantTrack().audioRoles).toEqual([]);
     });
 
-    // https://github.com/google/shaka-player/issues/3262
+    // https://github.com/shaka-project/shaka-player/issues/3262
     it('selectAudioLanguage() doesn\'t change resolution', () => {
       player.configure('abr.enabled', false);
       abrManager.chooseIndex = 1;
@@ -1807,7 +1831,7 @@ describe('Player', () => {
       expect(getActiveTextTrack().language).toBe('en');
     });
 
-    // https://github.com/google/shaka-player/issues/2010
+    // https://github.com/shaka-project/shaka-player/issues/2010
     it('changing text lang changes active stream when not streaming', () => {
       player.setTextTrackVisibility(false);
 
@@ -2463,7 +2487,7 @@ describe('Player', () => {
     it('throws CONTENT_UNSUPPORTED_BY_BROWSER', async () => {
       window.MediaSource.isTypeSupported = (mimeType) => false;
 
-      window.shakaMediaCapabilities.decodingInfo = async (config) => {
+      navigator.mediaCapabilities.decodingInfo = async (config) => {
         await Promise.resolve();
         return {supported: false};
       };
@@ -2548,7 +2572,7 @@ describe('Player', () => {
       expect(variants[0].id).toBe(2);
 
       // Now increase the restriction, AbrManager should still be updated.
-      // https://github.com/google/shaka-player/issues/1533
+      // https://github.com/shaka-project/shaka-player/issues/1533
       abrManager.setVariants.calls.reset();
       player.configure({restrictions: {maxBandwidth: Infinity}});
       expect(abrManager.setVariants).toHaveBeenCalledTimes(1);
@@ -2827,7 +2851,7 @@ describe('Player', () => {
         });
       });
 
-      window.shakaMediaCapabilities.decodingInfo = async (config) => {
+      navigator.mediaCapabilities.decodingInfo = async (config) => {
         await Promise.resolve();
         const videoType = config['video'] ? config['video'].contentType : '';
         if (videoType.includes('video') &&
@@ -3186,7 +3210,7 @@ describe('Player', () => {
     // Most of our Player unit tests never adapt.  This allowed some assertions
     // to creep in that went uncaught until they happened during manual testing.
     // Repro only happens with audio+video variants in which we only adapt one
-    // type.  This test covers https://github.com/google/shaka-player/issues/954
+    // type.  This test covers https://github.com/shaka-project/shaka-player/issues/954
 
     manifest = shaka.test.ManifestGenerator.generate((manifest) => {
       manifest.addVariant(0, (variant) => {
@@ -3268,7 +3292,7 @@ describe('Player', () => {
 
   describe('load', () => {
     it('tolerates bandwidth of NaN, undefined, or 0', async () => {
-      // Regression test for https://github.com/google/shaka-player/issues/938
+      // Regression test for https://github.com/shaka-project/shaka-player/issues/938
       manifest = shaka.test.ManifestGenerator.generate((manifest) => {
         manifest.addVariant(0, (variant) => {
           variant.bandwidth = /** @type {?} */(undefined);
@@ -3537,29 +3561,39 @@ describe('Player', () => {
 
         await player.load(fakeManifestUri, 0, fakeMimeType);
 
+        expect(player.getImageTracks()[0].width).toBe(100);
+        expect(player.getImageTracks()[0].height).toBe(50);
         const thumbnail0 = await player.getThumbnails(5, 0);
         const thumbnail1 = await player.getThumbnails(5, 11);
         const thumbnail2 = await player.getThumbnails(5, 21);
         const thumbnail5 = await player.getThumbnails(5, 51);
         expect(thumbnail0).toEqual(jasmine.objectContaining({
+          imageHeight: 150,
+          imageWidth: 200,
           positionX: 0,
           positionY: 0,
           width: 100,
           height: 50,
         }));
         expect(thumbnail1).toEqual(jasmine.objectContaining({
+          imageHeight: 150,
+          imageWidth: 200,
           positionX: 100,
           positionY: 0,
           width: 100,
           height: 50,
         }));
         expect(thumbnail2).toEqual(jasmine.objectContaining({
+          imageHeight: 150,
+          imageWidth: 200,
           positionX: 0,
           positionY: 50,
           width: 100,
           height: 50,
         }));
         expect(thumbnail5).toEqual(jasmine.objectContaining({
+          imageHeight: 150,
+          imageWidth: 200,
           positionX: 100,
           positionY: 100,
           width: 100,
