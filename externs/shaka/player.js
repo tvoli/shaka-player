@@ -815,6 +815,7 @@ shaka.extern.PersistentSessionMetadata;
  *   logLicenseExchange: boolean,
  *   updateExpirationTime: number,
  *   preferredKeySystems: !Array.<string>,
+ *   keyRotationPeriod: number,
  *   keySystemsMapping: !Object.<string, string>,
  *   parseInbandPsshEnabled: boolean,
  *   minHdcpVersion: string,
@@ -864,6 +865,8 @@ shaka.extern.PersistentSessionMetadata;
  *   <i>Defaults ['com.microsoft.playready'] on Xbox One and PlayStation 4, and
  *   an empty array for all other browsers.</i> <br>
  *   Specifies the priorties of available DRM key systems.
+ * @property {number} keyRotationPeriod
+ *   The frequency in milliseconds of DRM key rotation.
  * @property {Object.<string, string>} keySystemsMapping
  *   A map of key system name to key system name.
  * @property {boolean} parseInbandPsshEnabled
